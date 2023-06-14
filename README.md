@@ -53,3 +53,9 @@ Currently the R scripts are called from python by calling on the R script in the
 
 - Manuscript with description and application to an alpine catchment in the European Alps are in development.
 - **Current version will likely have bugs related to versioning and operating systems.**
+
+
+### Planned future developments
+
+-[] Add tests
+-[] Add demo-notebooks
