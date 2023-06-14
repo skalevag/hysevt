@@ -9,13 +9,12 @@ A manuscript is in development.
 ### Installation
 **The package requires python and R.**
 
-Most of the package is in **python**. However, the event detection routine and calculation of the hysteresis indices for the event characterisation requires **R**. Therefore please have the latest version of R installed on your computer. You can download R [here]().
+Most of the package is in **python**. However, the event detection routine and calculation of the hysteresis indices for the event characterisation requires **R**. Therefore please have the latest version of R installed on your computer. You can download R [here](https://cran.r-project.org).
 
+Install package:
 ```
-cd existing_repo
-git remote add origin https://gitup.uni-potsdam.de/skalevag2/hysevt.git
-git branch -M main
-git push -uf origin main
+cd [path-to-hysevt-repo]
+pip install .
 ```
 
 ### Demo notebooks
