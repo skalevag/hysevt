@@ -8,4 +8,12 @@ setup(name='hysevt',
       author_email='skalevag2@uni-potsdam.de',
       license='GNU GPLv3',
       packages=['hysevt'],
+      install_requires=[         
+        'pandas',         
+        'numpy',
+        'matplotlib',
+        'scipy',
+        'scikit-learn',
+        'cycler'
+      ],
       zip_safe=False)

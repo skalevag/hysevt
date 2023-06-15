@@ -15,7 +15,6 @@ Install package:
 ```
 git clone https://gitup.uni-potsdam.de/skalevag2/hysevt.git
 cd hysevt
-pip install -r requirements.txt
 pip install .
 ```
 
