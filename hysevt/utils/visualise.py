@@ -11,7 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from cycler import cycler
 import datetime as dt
-import watersedimentpulses.events.metrics
+import hysevt.events.metrics
 from scipy.cluster.hierarchy import dendrogram
 
 def plot_years_together(
@@ -90,11 +90,11 @@ def plotEventSeries(event_data, ax=None, legend=False):
         fig, ax = plt.subplots()
     ax2 = ax.twinx()
     ax.plot(event_data.streamflow, "b", label="streamflow")
-    ax.plot(watersedimentpulses.events.metrics.get_streamflow_peaks(event_data.streamflow),"kx")
+    ax.plot(hysevt.events.metrics.get_streamflow_peaks(event_data.streamflow),"kx")
     ax.set_ylabel("Q [m3/s]",color="b")
     ax.tick_params(axis='y', labelcolor="b")
     ax2.plot(event_data.suspended_sediment, "brown", label="suspended_sediment")
-    ax2.plot(watersedimentpulses.events.metrics.get_suspended_sediment_peaks(event_data.suspended_sediment),"kx")
+    ax2.plot(hysevt.events.metrics.get_suspended_sediment_peaks(event_data.suspended_sediment),"kx")
     ax2.set_ylabel("SSC [mg/l]",color="brown")
     ax2.tick_params(axis='y', labelcolor="brown")
     h1, l1 = ax.get_legend_handles_labels()
@@ -123,7 +123,7 @@ def plotEventSeriesWithPrecip(
     ax.plot(event_data.streamflow, "b", label="Q during event")
     ax.plot(pre_event_data.streamflow, "b:", label="Q before event")
     ax.plot(
-        watersedimentpulses.events.metrics.get_streamflow_peaks(event_data.streamflow),
+        hysevt.events.metrics.get_streamflow_peaks(event_data.streamflow),
         "kx",
     )
     ax.set_ylabel("Streamflow (Q) [$m^3\ s^{-1}$]", color="b")
@@ -136,7 +136,7 @@ def plotEventSeriesWithPrecip(
         pre_event_data.suspended_sediment, ":", color="brown", label="SSC before event"
     )
     ax2.plot(
-        watersedimentpulses.events.metrics.get_suspended_sediment_peaks(
+        hysevt.events.metrics.get_suspended_sediment_peaks(
             event_data.suspended_sediment
         ),
         "kx",

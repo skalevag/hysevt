@@ -16,6 +16,7 @@ library(loadflux)
 args = commandArgs(trailingOnly=TRUE)
 data_gauge = args[1]
 event_list = args[2]
+save_plots = args[3]
 print(data_gauge)
 print(event_list)
 
@@ -34,13 +35,16 @@ myEvents$start <- as.POSIXct(myEvents$start)
 myEvents$end <- as.POSIXct(myEvents$end)
 
 # plot hysteresis of each event
-pdf(pdf_file)
-for (event_no in 1:nrow(myEvents)){
-  myEvent = df[df$time >= myEvents[event_no,]$start & df$time <= myEvents[event_no,]$end,]
-  hp <- hysteresis_plot(dataframe = myEvent, q = streamflow, ssc = suspended_sediment)
-  print(hp)
+if (arg == "TRUE" | arg == "True"){
+  pdf(pdf_file)
+  for (event_no in 1:nrow(myEvents)){
+    myEvent = df[df$time >= myEvents[event_no,]$start & df$time <= myEvents[event_no,]$end,]
+    hp <- hysteresis_plot(dataframe = myEvent, q = streamflow, ssc = suspended_sediment)
+    print(hp)
+  }
+  dev.off()
 }
-dev.off()
+
 
 # get hysteresis index
 hi_simple = c() # empty vector

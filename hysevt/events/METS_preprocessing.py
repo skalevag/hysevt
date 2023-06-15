@@ -8,8 +8,8 @@ Email: skalevag2@uni-potsdam.de
 import scipy
 import numpy as np
 import pandas as pd
-import watersedimentpulses.events.metrics
-import watersedimentpulses.utils.tools
+import hysevt.events.metrics
+import hysevt.utils.tools
 from pathlib import Path
 
 def standard_event_length(x: np.ndarray, n=50, k=3, s=0) -> np.ndarray:
@@ -115,13 +115,13 @@ def main(file_gauge_data: Path, file_event_list: Path, output_filehead=None):
     event_list = pd.read_csv(file_event_list,index_col=0)
 
     # save the event ids to list
-    watersedimentpulses.utils.tools.save_list_to_txt(event_list.index.to_list(),file_event_list.parent.joinpath(f"{output_filehead}_event_id_list.txt"))
+    hysevt.utils.tools.save_list_to_txt(event_list.index.to_list(),file_event_list.parent.joinpath(f"{output_filehead}_event_id_list.txt"))
 
     # data
-    gauge_data = watersedimentpulses.events.metrics.get_gauge_data(file_gauge_data)
+    gauge_data = hysevt.events.metrics.get_gauge_data(file_gauge_data)
 
     # extract event series from all events to list
-    unprocessed_events = [watersedimentpulses.events.metrics.get_event_data(event.start, event.end, gauge_data).dropna() for i, event in event_list.iterrows()]
+    unprocessed_events = [hysevt.events.metrics.get_event_data(event.start, event.end, gauge_data).dropna() for i, event in event_list.iterrows()]
     # preprocess data for all events and stack to array
     preprocessed_data = preprocess_all_events(unprocessed_events)
 

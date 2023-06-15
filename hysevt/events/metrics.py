@@ -18,9 +18,9 @@ import numpy as np
 import scipy.signal
 import subprocess
 
-from watersedimentpulses.utils import conversion, tools
+from hysevt.utils import conversion, tools
 import logging
-from watersedimentpulses.utils.tools import log
+from hysevt.utils.tools import log
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -423,8 +423,8 @@ def falling_to_rising_volume_ratio(event_series, freq_in_sec,column_streamflow="
     
 # hysteresis
 @log(logger)
-def call_hysteresis_index_script(path_gauge_data: Path,path_event_list: Path, path_rscript=Path(__file__).parent.joinpath("hysteresis_index.R")):
-    """Calls an R-script which calculates the 3 hysteresis indeces.
+def call_hysteresis_index_script(path_gauge_data: Path,path_event_list: Path, path_rscript=Path(__file__).parent.joinpath("hysteresis_index.R"),save_hysteresis_plots=False):
+    """Calls an R-script which calculates 2 hysteresis indeces.
 
     Args:
         path_gauge_data (pathlib.Path): absolute path to csv file containing gaunging station data
@@ -448,8 +448,15 @@ def call_hysteresis_index_script(path_gauge_data: Path,path_event_list: Path, pa
     elif not path_rscript.is_file():
         raise FileNotFoundError(f"{path_rscript}")
     
+    if save_hysteresis_plots:
+        pdf = "TRUE"
+        logger.info(f"PDF of hysteresis plots will be saved at output location.")
+    else:
+        pdf = "FALSE"
+        logger.info(f"PDF of hysteresis plots will not be generated.")
+
     # create command
-    cmd = ["Rscript", f"{path_rscript}", f"{path_gauge_data}", f"{path_event_list}"]
+    cmd = ["Rscript", f"{path_rscript}", f"{path_gauge_data}", f"{path_event_list}",pdf]
     logger.info(f"Calling R-script with CMD : {' '.join(cmd)}")
     # run process
     out = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -458,7 +465,7 @@ def call_hysteresis_index_script(path_gauge_data: Path,path_event_list: Path, pa
     return outfile
 
 @log(logger)
-def calc_hysteresis_index(path_gauge_data: Path,path_event_list: Path) -> pd.DataFrame:
+def calc_hysteresis_index(path_gauge_data: Path,path_event_list: Path, save_hysteresis_plots=False) -> pd.DataFrame:
     """Calculates hysteresis indeces (AHI,SHI,HImid) for all events in list.
 
     Args:
@@ -466,7 +473,7 @@ def calc_hysteresis_index(path_gauge_data: Path,path_event_list: Path) -> pd.Dat
         path_event_list (pathlib.Path): absolute path to csv file containing event start and end timestamps
 
     Returns:
-        pandas.DataFrame: hysteresis indeces AHI, SHI and HImid for all events
+        pandas.DataFrame: hysteresis indeces AHI and SHIfor all events
 
     References:
     @computer_program{Tsyplenkov2022,
@@ -478,7 +485,7 @@ def calc_hysteresis_index(path_gauge_data: Path,path_event_list: Path) -> pd.Dat
         year = {2022},
     }
     """
-    outfile = call_hysteresis_index_script(path_gauge_data,path_event_list)
+    outfile = call_hysteresis_index_script(path_gauge_data,path_event_list,save_hysteresis_plots=save_hysteresis_plots)
     logger.info(f"Results saved: {outfile}")
     results = pd.read_csv(outfile)
     results.start = pd.to_datetime(results.start)
@@ -486,9 +493,8 @@ def calc_hysteresis_index(path_gauge_data: Path,path_event_list: Path) -> pd.Dat
     return results
 
 # magnitude to elapsed time logratio
-@log(logger)
 def append_mag_time_logratio(event_metrics: pd.DataFrame, magnitude_metric: str) -> pd.DataFrame:
-    """Logratio of last event magnitude to time since last event, appended to existing event metrics dataframe.
+    """Inter-event index (IEI), i.e. logratio of last event magnitude to time since last event, will be appended to existing event metrics dataframe.
 
     AKA: Skålevåg-Schmidt metric
 

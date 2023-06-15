@@ -10,9 +10,9 @@ from pathlib import Path
 import subprocess
 import pandas as pd
 import numpy as np
-import watersedimentpulses.events.metrics
+import hysevt.events.metrics
 import logging
-from watersedimentpulses.utils.tools import log
+from hysevt.utils.tools import log
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -42,7 +42,7 @@ def call_local_minimum_script(path_gauge_data: Path,output_file: Path, path_rscr
     logger.info(out.stdout)
 
 @log(logger)
-def local_minimum(path_gauge_data: Path,output_file: Path, event_station_id: str, event_version_id = "AUT", ma_window = "3H",keep_ma_gauge_data = False, filter_SSC_quantile=None) -> pd.DataFrame:
+def local_minimum(path_gauge_data: Path,output_file: Path, event_station_id: str, event_version_id = "AUT", ma_window = "3H", filter_SSC_quantile=0.9, keep_ma_gauge_data = False) -> pd.DataFrame:
     """Identifies hydrological events from streamflow data using the local minima method. 
     Then filters out events where suspended sediment data is missing or incomplete.
 
@@ -80,38 +80,44 @@ def local_minimum(path_gauge_data: Path,output_file: Path, event_station_id: str
     logger.addHandler(locallog)
     
     logger.info(f"Gauge data file: {path_gauge_data}")
+    # get gaugin station data
+    gauge_data = hysevt.events.metrics.get_gauge_data(path_gauge_data)
+    logger.info(f"Gauge data successfully loaded.")
     logger.info(f"Output file: {output_file}")
     logger.info(f"Rolling median window: {ma_window}")
-    if not filter_SSC_quantile is None:
-        logger.info(f"filter_SSC_quantile = {filter_SSC_quantile}")
+    logger.info(f"filter_SSC_quantile = {filter_SSC_quantile}")
+    # get SSC threshold
+    SSC_threshold = gauge_data.suspended_sediment.quantile(filter_SSC_quantile)
+    logger.info(f"{filter_SSC_quantile}-quantile SSC threshold = {SSC_threshold}")
     if keep_ma_gauge_data:
         logger.info(f"Keeping {ma_window}-median smoothed gauge data.")
     
-    # get gaugin station data
-    gauge_data = watersedimentpulses.events.metrics.get_gauge_data(path_gauge_data)
-    
+        
+
     # apply moving median smoothing
     gauge_data_smooth = gauge_data.rolling(ma_window,center=True).median()
-    
+    logger.info(f"Applied {ma_window}-median smoothing to gauge data.")
+
     # loc to save smooth data
     path_gauge_data_smooth = path_gauge_data.parent.joinpath(f"{path_gauge_data.name.split('.')[0]}_{ma_window}-median_smooth.csv")
     gauge_data_smooth.to_csv(path_gauge_data_smooth)
-    
+    logger.info(f"Saving {ma_window}-median smoothed gauge data to file: {path_gauge_data_smooth}")
     
     # make temp filename
     temp_output_file = Path(str(output_file).split(".")[0]+"_all_hydro_events.csv")
-    call_local_minimum_script(path_gauge_data,temp_output_file)
+    call_local_minimum_script(path_gauge_data_smooth,temp_output_file)
     
     if not keep_ma_gauge_data:
         # remove smoothed gauge data 
         path_gauge_data_smooth.unlink()
+        logger.info(f"Deleted {ma_window}-median smoothed gauge data file.")
     
     # import list of hydro events
     events_list = pd.read_csv(temp_output_file)
     logger.info(f"{len(events_list)} hydrological events detected.")
     
     # filter out events without sediment data
-    events_series = watersedimentpulses.events.metrics.get_event_series(events_list,gauge_data) # timeseries for each event
+    events_series = hysevt.events.metrics.get_event_series(events_list,gauge_data) # timeseries for each event
     event_numbers = events_list.index.to_list() # index of all events
     events_without_sediment = []
     for i,series in zip(event_numbers,events_series):
@@ -125,15 +131,15 @@ def local_minimum(path_gauge_data: Path,output_file: Path, event_station_id: str
     logger.info(f"{len(events_list)} events left.")
 
     # get event series of events which have sediment data
-    events_series = watersedimentpulses.events.metrics.get_event_series(events_list,gauge_data)
+    events_series = hysevt.events.metrics.get_event_series(events_list,gauge_data)
     event_numbers = events_list.index.to_list()
     # loop through events again
     events_missing_sediment = []
     high_events_missing_sediment = []
     for i,series in zip(event_numbers,events_series):
         if series.isna().any().any():
-            # high magnitude events with missing data are kep
-            if series.suspended_sediment.max() > 1000:
+            # high magnitude events with missing data are kept
+            if series.suspended_sediment.max() >= SSC_threshold:
                 high_events_missing_sediment.append(i)
             # the rest is removed
             else:
@@ -150,25 +156,23 @@ def local_minimum(path_gauge_data: Path,output_file: Path, event_station_id: str
     events_list = events_list[np.logical_not(events_list.index.isin(np.array(events_missing_sediment)))].reset_index(drop=True)
     logger.info(f"{len(events_list)} events left.")
     
-    if not filter_SSC_quantile is None:
-        SSC_threshold = gauge_data.suspended_sediment.quantile(filter_SSC_quantile)
-        logger.info(f"SSC threshold = {SSC_threshold}")
-        events_series = watersedimentpulses.events.metrics.get_event_series(events_list,gauge_data)
-        event_numbers = events_list.index.to_list()
-        # loop through events again
-        big_events = []
-        for i,series in zip(event_numbers,events_series):
-            if series.suspended_sediment.max() >= SSC_threshold:
-                # events with magnitude higher then threshold are kept
-                big_events.append(i)
-                
-        events_list[np.logical_not(events_list.index.isin(np.array(big_events)))].reset_index(
-            drop=True
-        ).to_csv(output_file.parent.joinpath("events_missing_sediment_data.csv"), index=False)
-        logger.info(f"{len(events_list)-len(big_events)} events were removed due small SSC maginitude.")
-        # select only events with sediment data and reset index
-        events_list = events_list.iloc[big_events,:].reset_index(drop=True)
-        logger.info(f"{len(events_list)} events left.")
+
+    events_series = hysevt.events.metrics.get_event_series(events_list,gauge_data)
+    event_numbers = events_list.index.to_list()
+    # loop through events again
+    big_events = []
+    for i,series in zip(event_numbers,events_series):
+        if series.suspended_sediment.max() >= SSC_threshold:
+            # events with magnitude higher then threshold are kept
+            big_events.append(i)
+            
+    events_list[np.logical_not(events_list.index.isin(np.array(big_events)))].reset_index(
+        drop=True
+    ).to_csv(output_file.parent.joinpath("events_missing_sediment_data.csv"), index=False)
+    logger.info(f"{len(events_list)-len(big_events)} events were removed due small SSC maginitude.")
+    # select only events with sediment data and reset index
+    events_list = events_list.iloc[big_events,:].reset_index(drop=True)
+    logger.info(f"{len(events_list)} events left.")
     
 
     # convert columns to datetime

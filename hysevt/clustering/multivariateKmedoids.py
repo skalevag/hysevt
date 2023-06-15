@@ -66,8 +66,8 @@ import numpy as np
 import pandas as pd
 import random
 import logging
-from watersedimentpulses.utils.tools import log
-import watersedimentpulses.utils.visualise
+from hysevt.utils.tools import log
+import hysevt.utils.visualise
 import multiprocessing as mp
 from itertools import repeat
 
@@ -436,6 +436,6 @@ def run_MultivariateKmedoids_cluster_range(data, k_range, max_iter, window_size,
     k_labels.to_csv(ODIR.joinpath("METS_clustering_results_labels.csv"),index=True)
     results.to_csv(ODIR.joinpath("METS_clustering_results_eval.csv"),index=False)
     # plot clustering results
-    watersedimentpulses.utils.visualise.plot_MultivariateKmedoids_eval(results,ODIR=ODIR)
+    hysevt.utils.visualise.plot_MultivariateKmedoids_eval(results,ODIR=ODIR)
     
     return k_labels, results
