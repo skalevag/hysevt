@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup,find_packages
 
 setup(name='hysevt',
       version='0.2',
@@ -7,7 +7,7 @@ setup(name='hysevt',
       author='Amalie Skålevåg',
       author_email='skalevag2@uni-potsdam.de',
       license='GNU GPLv3',
-      packages=['hysevt'],
+      packages=find_packages(),
       install_requires=[         
         'pandas',         
         'numpy',

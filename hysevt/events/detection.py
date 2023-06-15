@@ -42,7 +42,7 @@ def call_local_minimum_script(path_gauge_data: Path,output_file: Path, path_rscr
     logger.info(out.stdout)
 
 @log(logger)
-def local_minimum(path_gauge_data: Path,output_file: Path, event_station_id: str, event_version_id = "AUT", ma_window = "3H", filter_SSC_quantile=0.9, keep_ma_gauge_data = False) -> pd.DataFrame:
+def local_minimum(path_gauge_data: Path,output_file: Path, event_station_id: str, event_version_id = "AUT", ma_window = "3H", filter_SSC_quantile=0.9, keep_ma_gauge_data = False, path_rscript=Path(__file__).parent.joinpath("identify_events_local_minimum.R")) -> pd.DataFrame:
     """Identifies hydrological events from streamflow data using the local minima method. 
     Then filters out events where suspended sediment data is missing or incomplete.
 
@@ -91,8 +91,7 @@ def local_minimum(path_gauge_data: Path,output_file: Path, event_station_id: str
     logger.info(f"{filter_SSC_quantile}-quantile SSC threshold = {SSC_threshold}")
     if keep_ma_gauge_data:
         logger.info(f"Keeping {ma_window}-median smoothed gauge data.")
-    
-        
+
 
     # apply moving median smoothing
     gauge_data_smooth = gauge_data.rolling(ma_window,center=True).median()
@@ -105,7 +104,7 @@ def local_minimum(path_gauge_data: Path,output_file: Path, event_station_id: str
     
     # make temp filename
     temp_output_file = Path(str(output_file).split(".")[0]+"_all_hydro_events.csv")
-    call_local_minimum_script(path_gauge_data_smooth,temp_output_file)
+    call_local_minimum_script(path_gauge_data_smooth,temp_output_file,path_rscript=path_rscript)
     
     if not keep_ma_gauge_data:
         # remove smoothed gauge data 

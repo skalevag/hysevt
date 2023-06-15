@@ -465,7 +465,7 @@ def call_hysteresis_index_script(path_gauge_data: Path,path_event_list: Path, pa
     return outfile
 
 @log(logger)
-def calc_hysteresis_index(path_gauge_data: Path,path_event_list: Path, save_hysteresis_plots=False) -> pd.DataFrame:
+def calc_hysteresis_index(path_gauge_data: Path,path_event_list: Path, save_hysteresis_plots=False, path_rscript=Path(__file__).parent.joinpath("hysteresis_index.R")) -> pd.DataFrame:
     """Calculates hysteresis indeces (AHI,SHI,HImid) for all events in list.
 
     Args:
@@ -485,7 +485,7 @@ def calc_hysteresis_index(path_gauge_data: Path,path_event_list: Path, save_hyst
         year = {2022},
     }
     """
-    outfile = call_hysteresis_index_script(path_gauge_data,path_event_list,save_hysteresis_plots=save_hysteresis_plots)
+    outfile = call_hysteresis_index_script(path_gauge_data,path_event_list,save_hysteresis_plots=save_hysteresis_plots,path_rscript=path_rscript)
     logger.info(f"Results saved: {outfile}")
     results = pd.read_csv(outfile)
     results.start = pd.to_datetime(results.start)

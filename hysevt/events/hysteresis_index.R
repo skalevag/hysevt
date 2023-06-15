@@ -2,11 +2,11 @@ rm(list = ls())
 
 # packages
 if (!require("loadflux")){
-  install.packages("devtools")
-  devtools::install_github("atsyplenkov/loadflux")
+    install.packages("devtools",repos = "http://cran.us.r-project.org")
+    devtools::install_github("atsyplenkov/loadflux")
 }
 if (!require("dplyr")){
-  install.packages("dplyr")
+    install.packages("dplyr",repos = "http://cran.us.r-project.org")
 }
 
 library(dplyr)
@@ -28,14 +28,14 @@ csv_file = paste0(stem,"_hysteresis_index.csv")
 
 # discharge and sediment data
 df = read.csv(data_gauge)
-df$time <- as.POSIXct(df$time)
+df$time <- as.POSIXct(df$time,"%Y-%m-%d %H:%M:%OS")
 # list of event start and end dates
 myEvents = read.csv(event_list)
 myEvents$start <- as.POSIXct(myEvents$start)
 myEvents$end <- as.POSIXct(myEvents$end)
 
 # plot hysteresis of each event
-if (arg == "TRUE" | arg == "True"){
+if (save_plots == "TRUE" | save_plots == "True"){
   pdf(pdf_file)
   for (event_no in 1:nrow(myEvents)){
     myEvent = df[df$time >= myEvents[event_no,]$start & df$time <= myEvents[event_no,]$end,]

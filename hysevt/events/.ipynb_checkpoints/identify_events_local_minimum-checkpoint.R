@@ -2,11 +2,11 @@ rm(list = ls())
 
 # packages
 if (!require("loadflux")){
-  install.packages("devtools")
-  devtools::install_github("atsyplenkov/loadflux")
+    install.packages("devtools",repos = "http://cran.us.r-project.org")
+    devtools::install_github("atsyplenkov/loadflux")
 }
 if (!require("dplyr")){
-  install.packages("dplyr")
+    install.packages("dplyr",repos = "http://cran.us.r-project.org")
 }
 
 library(dplyr)
@@ -20,7 +20,7 @@ print(data_gauge)
 
 # discharge and sediment data
 df = read.csv(data_gauge)
-df$time <- as.POSIXct(df$time)
+df$time <- as.POSIXct(df$time,"%Y-%m-%d %H:%M:%OS")
 
 # identify new events
 myHydroEvents <- hydro_events(
