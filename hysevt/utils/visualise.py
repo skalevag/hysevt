@@ -13,6 +13,8 @@ from cycler import cycler
 import datetime as dt
 import hysevt.events.metrics
 from scipy.cluster.hierarchy import dendrogram
+import scipy
+import matplotlib as mpl
 
 def plot_years_together(
     ts, y_column, months=range(5, 11), ylabel=None,
@@ -619,3 +621,83 @@ def plot_cluster_zscores(event_metrics_zscores):
     ax[0].set_ylabel("Z-Score")
     ax[2].set_ylabel("Z-Score")
     plt.tight_layout()
+
+
+def plot_gmm(
+    X, Y_, means, covariances, cluster_colors,  alpha=0, no_ticks=False, ax=None, xy=None, e=3
+):
+    x, y = xy or (0, 1)
+    if ax is None:
+        fig, ax = plt.subplots()
+    for i, (mean, covar, color) in enumerate(zip(means, covariances, cluster_colors)):
+        ax.scatter(X[Y_ == i, x], X[Y_ == i, y], 1, color=color, label=f"Cluster{i}")
+
+        if covariances.shape == means.shape[:1]:
+            v = 2.0 * np.sqrt(2.0) * np.sqrt(covar)
+            # Plot an ellipse to show the Gaussian component
+            for a in np.linspace(1, e, 3):
+                ell = mpl.patches.Ellipse(mean, v * a, v * a, color=color)
+                ell.set_clip_box(ax.bbox)
+                ell.set_alpha(alpha)
+                ell.set_edgecolor(color)
+                ell.set_facecolor("none")
+                ax.add_artist(ell)
+        else:
+            v, w = scipy.linalg.eigh(covar)
+            v = 2.0 * np.sqrt(2.0) * np.sqrt(v)
+            u = w[x] / scipy.linalg.norm(w[x])
+
+            # Plot an ellipse to show the Gaussian component
+            angle = np.arctan(u[y] / u[x])
+            angle = 180.0 * angle / np.pi  # convert to degrees
+            for a in np.linspace(1, e, 3):
+                ell = mpl.patches.Ellipse(
+                    mean, v[x] * a, v[y] * a, angle=180.0 + angle, color=color
+                )
+                ell.set_clip_box(ax.bbox)
+                ell.set_alpha(alpha)
+                ell.set_edgecolor(color)
+                ell.set_facecolor("none")
+                ax.add_artist(ell)
+
+    if no_ticks:
+        plt.xticks(())
+        plt.yticks(())
+
+
+def violinplot_cluster_zscore(event_metrics_zscores,k,col_order,col_order_labels,col_colors,cluster_colors):
+    fig, ax = plt.subplots(
+        ncols=k,
+        sharey=True,
+        sharex=True,
+        figsize=(len(col_order), int(len(col_order) / 3)),
+    )
+    for c, sub in event_metrics_zscores.groupby("cluster_id"):
+
+        for j, m in enumerate(col_order):
+            violins = ax[int(c)].violinplot(
+                sub.loc[:, m].dropna(),
+                positions=[j + 1],
+                vert=False,
+                showmedians=False,
+                showmeans=True,
+                widths=0.9,
+            )
+            violins["bodies"][0].set_edgecolor(col_colors[j])
+            violins["bodies"][0].set_facecolor(col_colors[j])
+            violins["bodies"][0].set_alpha(0.7)
+            for partname in ("cbars", "cmins", "cmaxes", "cmeans"):
+                vp = violins[partname]
+                vp.set_edgecolor(col_colors[j])
+                vp.set_linewidth(2 if partname == "cmeans" else 1)
+
+        ax[int(c)].vlines(0, 0, len(col_order) + 1, color="grey", alpha=0.5, linewidth=1)
+        ax[int(c)].set_xlabel("Z-Score")
+        ax[int(c)].set_title(f"Cluster{int(c)}", color=cluster_colors[int(c)], fontsize=16)
+
+
+    ax[0].set_ylim(0, len(col_order) + 1)
+    ax[0].set_xlim(-7, 7)
+    plt.yticks(range(1, len(col_order) + 1), col_order_labels)
+    
+    return ax

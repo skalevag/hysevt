@@ -1,7 +1,8 @@
-from sklearn import mixture, metrics,cluster
+from sklearn import mixture, cluster
 import numpy as np
 import pandas as pd
-import functools
+import hysevt.clustering.evaluation
+
 
 # Gaussian Mixture Model (finite)
 def determine_cluster_number_GMM(X, n_components=np.arange(1, 21),gmm_kwargs=None):
@@ -12,7 +13,7 @@ def determine_cluster_number_GMM(X, n_components=np.arange(1, 21),gmm_kwargs=Non
     # add cluster scores
     out = [tuple(np.repeat(np.nan,4)),]
     for gmm in models[1:]:
-        out.append(clustering_scores(X,gmm.predict(X)))
+        out.append(hysevt.clustering.evaluation.clustering_scores(X,gmm.predict(X)))
     results = pd.DataFrame(out,index=n_components,columns=["silhouette_score_cos","silhouette_score_eucl","calinski_harabasz_score","davies_bouldin_score"])
     results["AIC"] = aic
     results["BIC"] = bic
@@ -69,7 +70,7 @@ def determine_cluster_number_agglomerative(X, n_clusters=np.arange(1, 21),agl_kw
         for n in n_clusters
     ]
     scores = [
-        clustering_scores(
+        hysevt.clustering.evaluation.clustering_scores(
             X, model.fit_predict(X)
         )
         for model in models
@@ -92,15 +93,3 @@ def AGL_estimate_dist_threshold_from_quantile(X,q):
         X
     )
     return np.quantile(agglCluster.distances_, q),agglCluster.distances_,agglCluster
-
-# cluster evaluation metrics
-def clustering_scores(X,y):
-
-    cluster_metric_functions = [
-        functools.partial(metrics.silhouette_score, metric="cosine"),
-        functools.partial(metrics.silhouette_score, metric="euclidean"),
-        metrics.calinski_harabasz_score,
-        metrics.davies_bouldin_score,
-    ]
-
-    return tuple([func(X, y) for func in cluster_metric_functions])
