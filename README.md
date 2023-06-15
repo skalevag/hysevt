@@ -13,7 +13,9 @@ Most of the package is in **python**. However, the event detection routine and c
 
 Install package:
 ```
-cd [path-to-hysevt-repo]
+git clone https://gitup.uni-potsdam.de/skalevag2/hysevt.git
+cd hysevt
+pip install -r requirements.txt
 pip install .
 ```
 
@@ -28,8 +30,6 @@ There are several notebooks demonstrating the use of the package under `demo/`.
 The routines for characterising events can be called from the terminal.
 
 ```
-cd [path-to-hysevt-repo]
-
 python hysevt/events/metrics.py -g SSC-Q-timeseries.csv -e events.csv -s annual_sediment_yield.csv -q annual_water_yield.csv -o output.csv
 ```
 
