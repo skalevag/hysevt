@@ -18,12 +18,25 @@ cd hysevt
 pip install .
 ```
 
+Alternatively, the package can be installed in "development" mode. This is useful if you plan to make changes to the module code.
+```
+git clone https://gitup.uni-potsdam.de/skalevag2/hysevt.git
+cd hysevt
+pip install -e .
+```
+
 ### Demo notebooks
 There are several notebooks demonstrating the use of the package under `demo/`.
 
-- Event detection
-- Event characterisation with metrics
-- Clustering events based on metrics
+- **Event detection** using *loadflux* [R-package](atsyplenkov.github.io/loadflux)
+- **Event characterisation** with metrics, based on SSC and Q time series of each event
+- **Clustering** events based on metrics, using GMM or another approach
+- **Evaluation** of metrics clustering
+
+Additionally, there are notebooks showing the use of METS clustering, to identify events (see [Javed et al., 2021](https://doi.org/10.1016/j.jhydrol.2020.125802) for details).
+
+- METS preprocessing: standardising event magnitude and length for the METS cluster alghorithm
+- METS clustering: clustering events based on the shape of **M**ulitvariate **E**vent **T**ime **S**eries
 
 ### Calling the scripts from the terminal
 The routines for characterising events can be called from the terminal.
