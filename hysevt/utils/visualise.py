@@ -181,8 +181,11 @@ def plot_MultivariateKmedoids_eval(results,ODIR=None):
     ax[1].set_yticks(np.arange(ax[1].get_yticks().min(), ax[1].get_yticks().max(), 2))
     plt.savefig(ODIR.joinpath("METS_clustering_results_eval.png"),bbox_inches="tight")
 
-def eval_plot_PCA(pca,cum_var_level=0.9):
-    fig, ax1 = plt.subplots()
+def eval_plot_PCA(pca,cum_var_level=0.9, ax=None):
+    if ax is None:
+        _, ax1 = plt.subplots()
+    else: 
+        ax1 = ax
     ax2 = ax1.twinx()
     ax1.bar(np.arange(1, pca.n_components_ + 1), pca.explained_variance_)
     ax1.set_xticks(np.arange(1, pca.n_components_ + 1))
@@ -190,10 +193,10 @@ def eval_plot_PCA(pca,cum_var_level=0.9):
         np.arange(1, pca.n_components_ + 1), np.cumsum(pca.explained_variance_ratio_), "r-*"
     )
     ax2.hlines(cum_var_level, 0, pca.n_components_ + 1, "k")
+    ax1.hlines(1, 0, pca.n_components_ + 1, "grey")
     ax1.set_ylabel("Eigenvalue (Explained variance)")
     ax2.set_ylabel("Cumulative explained variance ratio")
     ax1.set_xlabel("Component")
-    return fig
 
 def plot_variables_in_pca_space(loadings,variables,c1,c2,legend=True,ax=None,colors = None):
     if ax is None:
@@ -318,7 +321,7 @@ def quickplot_clustering_results(clustering_results: pd.DataFrame, with_year_col
         column="last_event_SSY_elapsed_time_logratio", by="cluster_id", grid=False, color="grey", ax=ax[0]
     )
     clustering_results.boxplot(
-        column="SSC_to_Q_peak_logratio", by="cluster_id", grid=False, color="grey", ax=ax[1]
+        column="SQPR", by="cluster_id", grid=False, color="grey", ax=ax[1]
     )
     plt.tight_layout()
     fig_list.append(fig)
