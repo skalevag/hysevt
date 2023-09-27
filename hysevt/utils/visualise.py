@@ -691,7 +691,7 @@ def violinplot_cluster_zscore(event_metrics_zscores,k,col_order,col_order_labels
             violins["bodies"][0].set_alpha(0.7)
             for partname in ("cbars", "cmins", "cmaxes", "cmeans"):
                 vp = violins[partname]
-                vp.set_edgecolor(col_colors[j])
+                vp.set_edgecolor("k" if partname == "cmeans" else col_colors[j])
                 vp.set_linewidth(2 if partname == "cmeans" else 1)
 
         ax[int(c)].vlines(0, 0, len(col_order) + 1, color="grey", alpha=0.5, linewidth=1)
