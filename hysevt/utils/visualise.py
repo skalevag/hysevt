@@ -87,23 +87,31 @@ def plotEventHysteresis(event_data, ax=None):
     ax.set_ylabel("SSC [mg/l]")
     ax.set_xlabel("Q [m3/s]")
 
-def plotEventSeries(event_data, ax=None, legend=False):
+def plotEventSeries(event_data, ax=None, legend=False, add_peaks=True):
     if ax is None:
         fig, ax = plt.subplots()
     ax2 = ax.twinx()
+    # streamflow
     ax.plot(event_data.streamflow, "b", label="streamflow")
-    ax.plot(hysevt.events.metrics.get_streamflow_peaks(event_data.streamflow),"kx")
-    ax.set_ylabel("Q [m3/s]",color="b")
+    ax.set_ylabel("Q [$m^3\ s^{-1}$]",color="b")
     ax.tick_params(axis='y', labelcolor="b")
-    ax2.plot(event_data.suspended_sediment, "brown", label="suspended_sediment")
-    ax2.plot(hysevt.events.metrics.get_suspended_sediment_peaks(event_data.suspended_sediment),"kx")
-    ax2.set_ylabel("SSC [mg/l]",color="brown")
+    # suspended sediment
+    ax2.plot(event_data.suspended_sediment/1000, "brown", label="suspended_sediment")
+    ax2.set_ylabel("SSC [$g\ l^{-1}$]",color="brown")
     ax2.tick_params(axis='y', labelcolor="brown")
+    #ax2.set_yticklabels(ax2.get_yticks()/1000)
+
+    # add peaks
+    if add_peaks:
+        ax.plot(hysevt.events.metrics.get_streamflow_peaks(event_data.streamflow),"kx")
+        ax2.plot(hysevt.events.metrics.get_suspended_sediment_peaks(event_data.suspended_sediment/1000),"kx")
+
+    # shared legend
     h1, l1 = ax.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
     if legend:
         ax.legend(h1 + h2, l1 + l2)
-    ax.set_title("Event")
+    #ax.set_title("Event")
     
 def plotEventSeriesWithPrecip(
     event_data,
