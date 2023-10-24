@@ -17,3 +17,9 @@ def sediment_yield(ssc_in_mg_per_l, q_in_m3_per_sec, freq_in_min):
         ssc_in_mg_per_l * q_in_m3_per_sec * freq_in_min * 60 * 10 ** -6
     )
     return sediment_yield_in_t
+
+def water_yield(q_in_m3_per_sec, freq_in_min):
+    water_yield_in_m3 = (
+        q_in_m3_per_sec * freq_in_min * 60
+    )
+    return water_yield_in_m3

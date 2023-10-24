@@ -5,3 +5,4 @@ build/
 .RData
 .RHistory
 hysevt.log
+.DS_Store

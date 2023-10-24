@@ -36,19 +36,6 @@ def log(logger: logging.Logger):
     return decorator
 
 
-def get_freq_in_min(index: pd.DatetimeIndex) -> float:
-    """Returns the temporal resolution (frequency) of a datetime index in minutes.
-
-    Args:
-        index (pd.DatetimeIndex): index containing datetime objects
-
-    Returns:
-        float: temporal resolution (frequency) in minutes
-    """
-    freq = pd.infer_freq(index)
-    freq_in_min = pd.Timedelta(freq).total_seconds()/60
-    return freq_in_min
-
 
 def get_freq_in_sec(index: pd.DatetimeIndex) -> float:
     """Returns the temporal resolution (frequency) of a datetime index in seconds.
@@ -60,8 +47,40 @@ def get_freq_in_sec(index: pd.DatetimeIndex) -> float:
         float: temporal resolution (frequency) in seconds
     """
     freq = pd.infer_freq(index)
+    if len(freq.replace("H","").replace("D","").replace("T",""))==0:
+        freq = "1"+freq
     freq_in_sec = pd.Timedelta(freq).total_seconds()
     return freq_in_sec
+
+
+def get_freq_in_min(index: pd.DatetimeIndex) -> float:
+    """Returns the temporal resolution (frequency) of a datetime index in minutes.
+
+    Args:
+        index (pd.DatetimeIndex): index containing datetime objects
+
+    Returns:
+        float: temporal resolution (frequency) in minutes
+    """
+    freq_in_sec = get_freq_in_sec(index)
+    freq_in_min = freq_in_sec/60
+
+    return freq_in_min
+
+
+def get_freq_in_hours(index: pd.DatetimeIndex) -> float:
+    """Returns the temporal resolution (frequency) of a datetime index in minutes.
+
+    Args:
+        index (pd.DatetimeIndex): index containing datetime objects
+
+    Returns:
+        float: temporal resolution (frequency) in minutes
+    """
+    freq_in_sec = get_freq_in_sec(index)
+    freq_in_h = freq_in_sec/(60*60)
+
+    return freq_in_h
 
 
 def save_dict_to_json(data,file):
