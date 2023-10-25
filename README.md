@@ -1,15 +1,15 @@
-x# Hydro-sediment event types
+# Hydro-sediment event types
 
-Detection, characterisation, clustering and type identification of hydro-sediment events. Only input for detection and clustering is sub-daily time series data of both streamflow (discharge) and (suspended) sediment concentration. To interpret the identified event clusters into *event types*, i.e. relating to certain processes or conditions requires expert knowledge and additional data.
+Detection, characterisation, clustering and type identification of hydro-sediment events. Only input for detection and clustering is a sub-daily time series data of both streamflow (discharge) and (suspended) sediment concentration. To interpret the identified event clusters into *event types*, i.e. relating to certain processes or conditions requires expert knowledge and additional data.
 
 A manuscript is in development.
 
 ## Getting started
 
 ### Installation
-**The package requires python and R.**
+**The package no longer requires both python and R for event detection, only to calculate hysteresis indices.**
 
-Most of the package is in **python**. However, the event detection routine and calculation of the hysteresis indices for the event characterisation requires **R**. Therefore please have the latest version of R installed on your computer. You can download R [here](https://cran.r-project.org).
+Most of the package is in **python**. However, the calculation of the hysteresis indices for the event characterisation requires **R**. Therefore please have the latest version of R installed on your computer. You can download R [here](https://cran.r-project.org).
 
 Install package:
 ```
@@ -28,7 +28,7 @@ pip install -e .
 ### Demo notebooks
 There are several notebooks demonstrating the use of the package under `demo/`.
 
-- **Event detection** using *loadflux* [R-package](atsyplenkov.github.io/loadflux)
+- **Event detection** using local minima hydrograph separation, and subsequently filtering based on user-defined criteria
 - **Event characterisation** with metrics, based on SSC and Q time series of each event
 - **Clustering** events based on metrics, using GMM or another approach
 - **Evaluation** of metrics clustering
@@ -63,10 +63,18 @@ Currently the R scripts are called from python by calling on the R script in the
 ## Project status
 
 - Manuscript with description and application to an alpine catchment in the European Alps are in development.
-- **Current version will likely have bugs related to versioning and operating systems.**
+- **Current version may still have bugs related to versioning and operating systems.**
+- Event detection has been updated so that it runs completely in python (version 0.3)
 
 
 ### Planned future developments
 
--[] Add tests
--[] Add demo-notebooks
+-[ ] Make more of the routines run with terminal commands
+-[ ] Add tests
+-[ ] Add more demo-notebooks
+-[ ] Make event detection more flexible so that different filters can be added or removed according to user's desire
+
+## References
+
+- *loadflux* [R-package](atsyplenkov.github.io/loadflux)
+- Sloto, R. A., Crouse, M. Y., & Eaton, G. P. (1996). HYSEP: A Computer Program for Streamflow Hydrograph Separation and Analysis. In Water-Resources Investigations Report. https://doi.org/10.3133/wri964040
