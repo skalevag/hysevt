@@ -17,7 +17,7 @@ from hysevt.utils.tools import log,get_freq_in_hours
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-@log(logger)
+
 def locmin(x: np.ndarray, y: np.ndarray,window=21):
     """Get local minima.
 
@@ -132,7 +132,7 @@ def hydro_events(qt = None, q = None, t = None, window=21):
     hydro_events = LocMin.cumsum()
     return hydro_events
 
-@log(logger)
+
 def get_hydro_events_start_end(hydro_events: pd.Series) -> pd.DataFrame:
     """Get start and end timestamps of hydrological events from timeseries of hydro_events indices.
 
@@ -150,7 +150,7 @@ def get_hydro_events_start_end(hydro_events: pd.Series) -> pd.DataFrame:
     return pd.DataFrame(np.array([start,end]).T,columns=["start","end"])
 
 @log(logger)
-def filter_hydro_events(events_list: pd.DataFrame,gauge_data: pd.DataFrame,max_missing = 0.9):
+def filter_for_missing_data(events_list: pd.DataFrame,gauge_data: pd.DataFrame,max_missing = 0.9, column="streamflow"):
     """Filter hydrological events, removing those with too much missing data.
 
     Args:
@@ -168,7 +168,7 @@ def filter_hydro_events(events_list: pd.DataFrame,gauge_data: pd.DataFrame,max_m
     
     events_without_data = []
     for i,event in zip(event_numbers,events_series):
-        completeness = event.streamflow.notnull().sum()/len(event)
+        completeness = event[column].notnull().sum()/len(event)
         if completeness < max_missing:
             events_without_data.append(i)
     # save the removed events to table
@@ -178,7 +178,7 @@ def filter_hydro_events(events_list: pd.DataFrame,gauge_data: pd.DataFrame,max_m
     return events_list,removed_events
 
 @log(logger)
-def filter_events_without_sediment_data(events_list: pd.DataFrame,gauge_data: pd.DataFrame,suspended_sediment_column="suspended_sediment"):
+def filter_events_without_any_sediment_data(events_list: pd.DataFrame,gauge_data: pd.DataFrame,suspended_sediment_column="suspended_sediment"):
     """Filter out events that have no suspended sediment data.
 
     Args:
@@ -215,6 +215,8 @@ def filter_events_with_missing_sediment_data(events_list: pd.DataFrame, gauge_da
         pandas.DataFrame: filtered list of event start and end timestamps
         pandas.DataFrame: list of removed events
     """
+    if SSC_threshold is None:
+        SSC_threshold = np.inf
     # get event series of events which have sediment data
     events_series = hysevt.events.metrics.get_event_series(events_list,gauge_data)
     event_numbers = events_list.index.to_list()
@@ -268,17 +270,20 @@ def filter_out_small_hydro_sediment_events(events_list: pd.DataFrame, gauge_data
 
     return events_list,removed_events
 
+
 @log(logger)
 def hydro_sediment_events(path_gauge_data: Path,
-                          output_file: Path,
+                          output_directory: Path,
                           event_station_id: str,
                           event_version_id = "AUT",
                           ma_window = "3H",
                           he_window=21,
-                          filter_SSC_quantile = 0.9,
+                          SSC_threshold_by_quantile = 0.9,
                           keep_ma_gauge_data = False,
                           keep_removed_events = False,
-                          SSC_threshold = None) -> pd.DataFrame:
+                          SSC_threshold = None,
+                          max_Q_missing = None,
+                          max_SSC_missing = None) -> pd.DataFrame:
     """Run full hydro-sediment event detection.
 
     Loads timeseries of streamflow and suspeded sediment. 
@@ -288,43 +293,58 @@ def hydro_sediment_events(path_gauge_data: Path,
     The final list of hydro-sediment events are both returned by the function and saved to csv-file at 'output_file'.
 
     Args:
-        path_gauge_data (pathlib.Path): path to csv-file containing suspended sediment and streamflow data. Index must be datetime, and must have the column headers "suspeded_sediment" and "streamflow".
+        path_gauge_data (pathlib.Path): path to csv-file containing suspended sediment and streamflow data. Index must be datetime, and must have the column headers "suspended_sediment" and "streamflow".
         output_file (pathlib.Path): path to csv-file where final hydro-sediment events list should be saved.
         event_station_id (str): abbreviation of station name or id, will be used to create the event id
         event_version_id (str, optional): abbreviation of event detection version, will be used to create the event id. Defaults to "AUT".
         ma_window (str, optional): size of median moving average window, must conform to pandas.Timedelta units. Defaults to "3H".
         he_window (int, optional): size of local minima window for hydrograph separation. Defaults to 21.
-        filter_SSC_quantile (float, optional): quantile used to set peak suspended sediment threshold, will be ignored if 'SSC_threshold' argument is used. Defaults to 0.9.
+        SSC_threshold_by_quantile (float, optional): quantile used to set peak suspended sediment threshold, will be ignored if 'SSC_threshold' argument is used. If both 'SSC_threshold_by_quantile' and 'SSC_threshold' is set to None, no events will be removed due to small SSC magnitude. Defaults to 0.9.
         keep_ma_gauge_data (bool, optional): if True, the smoothed gauge data is saved to file in the same directory as 'path_gauge_data'. Defaults to False.
         keep_removed_events (bool, optional): if True, the dataframes of removed events from each filtering is saved to csv-file at same location as output. Defaults to False.
-        SSC_threshold (float, optional): set peak suspended sediment threshold, will override 'filter_SSC_quantile' argument. Defaults to None.
+        SSC_threshold (float, optional): set peak suspended sediment threshold, will override 'SSC_threshold_by_quantile' argument. If both 'SSC_threshold_by_quantile' and 'SSC_threshold' is set to None, no events will be removed due to small SSC magnitude. Defaults to None.
+        max_Q_missing (float, optional): maximum fraction of missing streamflow data allowed in each event, if too much data is missing in an event it will be removed. Defaults to None.
+        max_SSC_missing (float, optional): maximum fraction of missing streamflow data allowed in each event, if too much data is missing in an event it will be removed. Defaults to None.
 
     Returns:
-        pd.DataFrame: list of hydro-sediment events start and end timestamps, same dataframe is also saved to csv-file at 'output_file'
+        pd.DataFrame: list of hydro-sediment events start and end timestamps, same dataframe is also saved as a csv-file at 'output_directory'
     """
+    output_file = output_directory.joinpath("hydro_sediment_events_list.csv")
+    
     # create local log
-    locallog = logging.FileHandler(filename=output_file.parent.joinpath(f'{__name__.split(".")[-1]}.log'),mode='w')
+    locallog = logging.FileHandler(filename=output_directory.joinpath(f'{__name__.split(".")[-1]}.log'),mode='w')
     locallog.setLevel(logging.INFO)
     logger.addHandler(locallog)
     
     logger.info(f"############ PREAMBLE ############")
     logger.info(f"Gauge data file: {path_gauge_data}")
-    # get gaugin station data
+    # get gauging station data
     gauge_data = hysevt.events.metrics.get_gauge_data(path_gauge_data)
     logger.info(f"Gauge data successfully loaded.")
-    logger.info(f"Output file: {output_file}")
+    logger.info(f"Gauge data temporal extent: {gauge_data.index[0]}-{gauge_data.index[-1]}")
+    # document the location of output and filenames
+    logger.info(f"Output directory: {output_directory}")
+    logger.info(f"Final output file: {output_file.name}")
+    # hydrograph separation settings
     logger.info(f"Local minima window: {he_window} hours")
     logger.info(f"Rolling median window: {ma_window}")
-    logger.info(f"filter_SSC_quantile = {filter_SSC_quantile}")
+    if max_Q_missing is not None:
+        logger.info(f"Hydrological events must have more than {max_Q_missing*100}% valid streamflow data.")
+    logger.info(f"filter_SSC_quantile = {SSC_threshold_by_quantile}")
+    if max_SSC_missing is not None:
+        logger.info(f"Hydro-sediment events must have more than {max_SSC_missing*100}% valid suspended sediment data.")
     
     # set peak SSC threshold
-    if SSC_threshold is None:
+    if SSC_threshold is None and SSC_threshold_by_quantile is not None:
         # get SSC threshold from quantile
-        SSC_threshold = gauge_data.suspended_sediment.quantile(filter_SSC_quantile)
-        logger.info(f"{filter_SSC_quantile}-quantile SSC threshold = {SSC_threshold}")
-    else:
+        SSC_threshold = gauge_data.suspended_sediment.quantile(SSC_threshold_by_quantile)
+        logger.info(f"{SSC_threshold_by_quantile}-quantile SSC threshold = {SSC_threshold}")
+    elif SSC_threshold is not None:
         logger.info(f"User-defined SSC threshold = {SSC_threshold}")
+    else:
+        SSC_threshold = None
 
+    logger.info(f"############ DETECTION ############")
     # apply moving median smoothing
     gauge_data_smooth = gauge_data.rolling(ma_window,center=True).median()
     logger.info(f"Applied {ma_window}-median smoothing to gauge data.")
@@ -338,45 +358,56 @@ def hydro_sediment_events(path_gauge_data: Path,
     
     
     # make temp filename
-    temp_output_file = Path(str(output_file).split(".")[0]+"_all_hydro_events.csv")
+    temp_output_file = output_directory.joinpath("all_hydro_events.csv")
     
-    logger.info(f"############ DETECTION ############")
     # get hydro events
+    logger.info(f"Detecting hydrological events ...")
     gauge_data["he"] = hysevt.events.detection.hydro_events(qt=gauge_data_smooth.streamflow,window=he_window)
     events_list = get_hydro_events_start_end(gauge_data.he)
     logger.info(f"{len(events_list)} hydrological events detected.")
     
-    
     # remove hydro events with too much missing data
-    events_list,removed_events = filter_hydro_events(events_list,gauge_data=gauge_data)
-    logger.info(f"{len(removed_events)} hydrological events removed due too much missing data.")
-    if keep_removed_events:
-        removed_events.to_csv(output_file.parent.joinpath("events_with_too_much_missing_streamflow.csv"),index=False)
-    logger.info(f"{len(events_list)} events left.")
+    if max_Q_missing is not None:
+        events_list,removed_events = filter_for_missing_data(events_list,gauge_data=gauge_data,max_missing=max_Q_missing,column="streamflow")
+        logger.info(f"{len(removed_events)} hydrological events removed due too much missing data (>{max_Q_missing*100}%).")
+        if keep_removed_events:
+            removed_events.to_csv(output_file.parent.joinpath("events_with_too_much_missing_streamflow.csv"),index=False)
+        logger.info(f"{len(events_list)} events left.")
+    
+    # save hydrological events to file
     events_list.to_csv(temp_output_file)
     logger.info(f"Hydrological events saved to file: {temp_output_file}")
     
     # filter out events without sediment data
-    events_list,removed_events = filter_events_without_sediment_data(events_list,gauge_data=gauge_data)
+    events_list,removed_events = filter_events_without_any_sediment_data(events_list,gauge_data=gauge_data)
     logger.info(f"{len(removed_events)}, events were removed due to no sediment data.")
     if keep_removed_events:
         removed_events.to_csv(output_file.parent.joinpath("events_without_sediment_data.csv"),index=False)
     logger.info(f"{len(events_list)} events left.")
     
+    # remove events with too much missing suspended sediment data
+    if max_SSC_missing is not None:
+        events_list,removed_events = filter_for_missing_data(events_list,gauge_data=gauge_data,max_missing=max_SSC_missing,column="suspended_sediment")
+        logger.info(f"{len(removed_events)} hydro-sediment events removed due too much missing SSC data (>{max_SSC_missing*100}%).")
+        if keep_removed_events:
+            removed_events.to_csv(output_file.parent.joinpath("events_with_too_much_missing_SSC.csv"),index=False)
+        logger.info(f"{len(events_list)} events left.")
+
     # filter out events with missing sediment data, unless they are above SSC threshold
     events_list,removed_events = filter_events_with_missing_sediment_data(events_list,gauge_data=gauge_data,SSC_threshold=SSC_threshold)
-    logger.info(f"{len(removed_events)} events were removed due to missing sediment data.")
+    logger.info(f"{len(removed_events)} events were removed due to incomplete sediment data, except where the peak was above SSC_threshold")
     if keep_removed_events:
         # save the removed events to table
         removed_events.to_csv(output_file.parent.joinpath("events_missing_sediment_data.csv"),index=False)
     logger.info(f"{len(events_list)} events left.")
-    
-    # filter out events below SSC threshold, i.e. small events
-    events_list,removed_events = filter_out_small_hydro_sediment_events(events_list,gauge_data=gauge_data,SSC_threshold=SSC_threshold)
-    logger.info(f"{len(removed_events)} events were removed due small SSC maginitude.")
-    if keep_removed_events:
-        removed_events.to_csv(output_file.parent.joinpath("events_small_magnitude.csv"), index=False)
-    logger.info(f"{len(events_list)} events left.")
+
+    if SSC_threshold is not None:
+        # filter out events below SSC threshold, i.e. small events
+        events_list,removed_events = filter_out_small_hydro_sediment_events(events_list,gauge_data=gauge_data,SSC_threshold=SSC_threshold)
+        logger.info(f"{len(removed_events)} events were removed due small SSC maginitude.")
+        if keep_removed_events:
+            removed_events.to_csv(output_file.parent.joinpath("events_small_magnitude.csv"), index=False)
+        logger.info(f"{len(events_list)} events left.")
     
     # add event id numbers 
     event_id_numbers = []
@@ -567,3 +598,43 @@ def local_minimum(path_gauge_data: Path,output_file: Path, event_station_id: str
 
     return events_list
 
+####### MAIN FUNCTION TO RUN SCRIPT FROM TERMINAL #######
+def main(file_gauge_data,file_events,file_annual_streamflow,file_annual_sediment,output_file):
+    
+    # create local log
+    locallog = logging.FileHandler(filename=output_file.parent.joinpath(f'{__name__.split(".")[-1]}.log'),mode='w')
+    locallog.setLevel(logging.INFO)
+    formatter = logging.Formatter(fmt="%(asctime)s\t%(name)s\t%(levelname)s\t%(message)s",datefmt="%Y-%m-%d %H:%M:%S")
+    locallog.setFormatter(formatter)
+    logger.addHandler(locallog)
+    
+    logger.info(f"Gauge data file: {file_gauge_data}")
+    logger.info(f"Output file: {output_file}")
+    # import data
+    data = hysevt.events.metrics.get_gauge_data(file_gauge_data)
+    events_list = pd.read_csv(file_events)
+    annual_sediment_yield = pd.read_csv(file_annual_sediment,index_col=0)
+    annual_streamflow_volume = pd.read_csv(file_annual_streamflow,index_col=0)
+    # calucalte the metrics
+    #event_metrics = calculate_event_metrics(events_list,data,annual_sediment_yield,annual_streamflow_volume)
+    
+    #hysteresis_index = calc_hysteresis_index(file_gauge_data,file_events)
+    #event_metrics = event_metrics.join(hysteresis_index.drop(columns=["start","end"]))
+    event_metrics = event_metrics.drop(columns="X")
+    
+    # save the metrics to file
+    event_metrics.to_csv(output_file,index=False)
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('-g', '--gaugefile', dest="file_gauge_data", type=Path, required=True, help='guage data file with timeseries data from gauging station')
+    parser.add_argument('-e', '--eventfile', dest="file_event_list", type=Path, required=True, help='event list file with start and end times for events in columns "start" and "end" respectively')
+    parser.add_argument('-s', '--annualsediment', dest="file_annual_sediment", type=Path, required=True, help='timeseries of annual suspended sediment yield from gauging station')
+    parser.add_argument('-q', '--annualstreamflow', dest="file_annual_streamflow", type=Path, required=True, help='timeseries of annual streamflow volume from gauging station')
+    parser.add_argument('-o', '--outputfile', dest="output_file", type=Path, required=True, help='output file')
+    args = parser.parse_args()
+
+    main(file_gauge_data=args.file_gauge_data,file_events=args.file_event_list,file_annual_streamflow=args.file_annual_streamflow,file_annual_sediment=args.file_annual_sediment,output_file=args.output_file)
