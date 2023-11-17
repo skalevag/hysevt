@@ -71,10 +71,13 @@ Currently the R scripts are called from python by calling on the R script in the
 
 ### Planned future developments
 
--[ ] Make more of the routines run with terminal commands
--[ ] Add tests
--[ ] Add more demo-notebooks
--[ ] Make event detection more flexible so that different filters can be added or removed according to user's desire
+- [ ] Add new metrics:
+    - [ ] flood duration (streamflow volume to peak ratio) (Qtotal / Qpeak)
+    - [ ] sediment mass to peak ratio as an analog to flood duration? (SSYtotal / SSYpeak)
+- [ ] Make more of the routines run with terminal commands
+- [ ] Add tests
+- [ ] Add more demo-notebooks
+- [ ] Make event detection more flexible so that different filters can be added or removed according to user's desire
 
 ## References
 
