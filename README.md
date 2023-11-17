@@ -2,6 +2,8 @@
 
 Detection, characterisation, clustering and type identification of hydro-sediment events. Only input for detection and clustering is a sub-daily time series data of both streamflow (discharge) and (suspended) sediment concentration. To interpret the identified event clusters into *event types*, i.e. relating to certain processes or conditions requires expert knowledge and additional data.
 
+The hysevt tool enables event-based analysis of riverine sediment fluxes, by detecting and grouping similar events together, which can in turn be interpreted to understand under which conditions episodic sediment fluxes occur in the target catchment.
+
 A manuscript is in development.
 
 ## Getting started

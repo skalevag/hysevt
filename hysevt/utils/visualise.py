@@ -163,7 +163,7 @@ def plotEventSeriesWithPrecip(
         color="grey",
         label="P before and during event",
     )
-    ax3.set_ylim(np.array(ax3.get_ylim()[::-1]) * precip_axis_scaling_factor)
+    ax3.set_ylim(max(ax3.get_ylim()[-1],1) * precip_axis_scaling_factor, 0)
     ax3.spines.right.set_position(("axes", 1.2))
     ax3.set_ylabel("Precipitation (P) [$mm\ h^{-1}$]", color="grey")
     ax3.tick_params(axis="y", labelcolor="grey")
