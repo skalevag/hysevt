@@ -712,3 +712,123 @@ def violinplot_cluster_zscore(event_metrics_zscores,k,col_order,col_order_labels
     plt.yticks(range(1, len(col_order) + 1), col_order_labels)
     
     return ax
+
+def plot_cluster_prob(
+    features_with_cluster_prob,
+    k,
+    x,
+    y,
+    logy=False,
+    logx=False,
+    x_label=None,
+    y_label=None,
+):
+    seq_cmaps = [
+        "Purples",
+        "Blues",
+        "Greens",
+        "Oranges",
+        "Reds",
+        "YlOrBr",
+        "YlOrRd",
+        "OrRd",
+        "PuRd",
+        "RdPu",
+        "BuPu",
+        "GnBu",
+        "PuBu",
+        "YlGnBu",
+        "PuBuGn",
+        "BuGn",
+        "YlGn",
+    ]
+
+    if x_label is None:
+        x_label = x
+    if y_label is None:
+        y_label = y
+
+    fig, ax = plt.subplots(
+        ncols=k // 2, nrows=2, figsize=(2.5 * k, 3 * 2), sharex=True, sharey=True
+    )
+    ax = ax.ravel()
+
+    for c, cmap in zip(range(k), seq_cmaps[:k]):
+        features_with_cluster_prob.plot.scatter(
+            ax=ax[c],
+            x=x,
+            y=y,
+            c=f"prob_cluster_{c}",
+            cmap=cmap,
+            vmin=0,
+            vmax=1,
+            alpha=0.5,
+            edgecolor="none",
+            logy=logy,
+            logx=logx,
+        )
+        ax[c].set_title(f"Cluster {c}")
+        ax[c].set_ylabel("")
+    fig.text(0.5, -0.03, x_label, fontsize=18)
+    fig.text(-0.03, 0.5, y_label, fontsize=18, rotation="vertical")
+    plt.tight_layout()
+    
+def plot_cluster_prob(
+    features_with_cluster_prob,
+    k,
+    x,
+    y,
+    logy=False,
+    logx=False,
+    x_label=None,
+    y_label=None,
+):
+    seq_cmaps = [
+        "Purples",
+        "Blues",
+        "Greens",
+        "Oranges",
+        "Reds",
+        "YlOrBr",
+        "YlOrRd",
+        "OrRd",
+        "PuRd",
+        "RdPu",
+        "BuPu",
+        "GnBu",
+        "PuBu",
+        "YlGnBu",
+        "PuBuGn",
+        "BuGn",
+        "YlGn",
+    ]
+
+    if x_label is None:
+        x_label = x
+    if y_label is None:
+        y_label = y
+
+    fig, ax = plt.subplots(
+        ncols=k // 2, nrows=2, figsize=(2.5 * k, 3 * 2), sharex=True, sharey=True
+    )
+    ax = ax.ravel()
+
+    for c, cmap in zip(range(k), seq_cmaps[:k]):
+        features_with_cluster_prob.plot.scatter(
+            ax=ax[c],
+            x=x,
+            y=y,
+            c=f"prob_cluster_{c}",
+            cmap=cmap,
+            vmin=0,
+            vmax=1,
+            alpha=0.5,
+            edgecolor="none",
+            logy=logy,
+            logx=logx,
+        )
+        ax[c].set_title(f"Cluster {c}")
+        ax[c].set_ylabel("")
+    fig.text(0.5, -0.03, x_label, fontsize=18)
+    fig.text(-0.03, 0.5, y_label, fontsize=18, rotation="vertical")
+    plt.tight_layout()
