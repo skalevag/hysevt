@@ -456,7 +456,7 @@ def call_hysteresis_index_script(path_gauge_data: Path,path_event_list: Path, pa
         logger.info(f"PDF of hysteresis plots will not be generated.")
 
     # create command
-    cmd = ["Rscript", f"{path_rscript}", f"{path_gauge_data}", f"{path_event_list}",pdf]
+    cmd = ["Rscript", f"{path_rscript.resolve()}", f"{path_gauge_data.resolve()}", f"{path_event_list.resolve()}",pdf]
     logger.info(f"Calling R-script with CMD : {' '.join(cmd)}")
     # run process
     out = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -466,7 +466,7 @@ def call_hysteresis_index_script(path_gauge_data: Path,path_event_list: Path, pa
 
 @log(logger)
 def calc_hysteresis_index(path_gauge_data: Path,path_event_list: Path, save_hysteresis_plots=False, path_rscript=Path(__file__).parent.joinpath("hysteresis_index.R")) -> pd.DataFrame:
-    """Calculates hysteresis indeces (AHI,SHI,HImid) for all events in list.
+    """Calculates hysteresis indeces (AHI,SHI) for all events in list.
 
     Args:
         path_gauge_data (pathlib.Path): absolute path to csv file containing gaunging station data
@@ -517,7 +517,7 @@ def append_mag_time_logratio(event_metrics: pd.DataFrame, magnitude_metric: str)
         )  # magnitude to time since last logratio
     assert len(mag_time_ratio) == len(event_metrics)  # check that lengths match
     event_metrics[
-        f"last_event_{magnitude_metric}_elapsed_time_logratio"
+        f"IEI_{magnitude_metric}"
     ] = mag_time_ratio  # append to event metrics dataframe
     return event_metrics
 
@@ -525,16 +525,13 @@ def append_mag_time_logratio(event_metrics: pd.DataFrame, magnitude_metric: str)
 @log(logger)
 def calculate_event_metrics(
     events_list: pd.DataFrame,
-    data: pd.DataFrame,
-    annual_sediment_yield: pd.DataFrame,
-    annual_streamflow_volume: pd.DataFrame,
-    column_streamflow="streamflow",
-    column_suspended_sediment="suspended_sediment",
-    add_inter_event_effect_metrics=True,
+    gauge_data: pd.DataFrame,
     min_peak_distance=4,
     SSC_peak_prominence=500,
     Q_peak_prominence=2,
-    log_transform_duration_magnitude=True
+    column_streamflow="streamflow",
+    column_suspended_sediment="suspended_sediment",
+    catchment_area=None
 ) -> pd.DataFrame:
     """Calculates metrics for all events in a given list of events.
 
@@ -551,18 +548,19 @@ def calculate_event_metrics(
     Returns:
         pd.DataFrame: table with event metrics
     """
+    # ensure that event list is datetime objects
+    events_list = events_list.apply(pd.to_datetime)
+
+    # temporal resolusion of data
+    freq_in_min = tools.get_freq_in_min(gauge_data.index)
+    freq_in_sec = tools.get_freq_in_sec(gauge_data.index)
     
-    # metrics to be calculated
-    duration = []
-    timing = []
-    year = []
+    # metrics to be calculated from event time series
     SSY = []
-    pSSY = []
     SSC_peak = []
     SSC_mean = []
     n_SSC_peaks = []
     Qtotal = []
-    pQtotal = []
     Q_peak = []
     Q_mean = []
     n_Q_peaks = []
@@ -572,106 +570,73 @@ def calculate_event_metrics(
 
     # iterate over each event identified in the events list
     for i, event in events_list.iterrows():
-        event_series = get_event_data(event.start, event.end, data)
-
-        # general metrics
-        duration.append(event_duration(event.start, event.end))
-        timing.append(seasonal_timing(event.start))
-        event_year = event.start.year
-        year.append(event_year)
-        # temporal resolusion of data
-        freq_in_min = tools.get_freq_in_min(event_series.index)
-        freq_in_sec = tools.get_freq_in_sec(event_series.index)
-
-        # suspended sediment
+        event_series = get_event_data(event.start, event.end, gauge_data)
+        
+        # suspended sediment magnitude
         SSY.append(
             total_suspended_sediment_yield(event_series, freq_in_min=freq_in_min)
         )
-        annualSSY = annual_sediment_yield.loc[
-            event_year, "sediment_yield"
-        ]  # import annual SSY from appropriate year
-        pSSY.append(
-            proportion_of_annual_suspended_sediment_yield(
-                event_series, annualSSY=annualSSY, freq_in_min=freq_in_min
-            )
-        )
-        n_SSC_peaks.append(number_suspended_sediment_peaks(event_series[column_suspended_sediment],distance=min_peak_distance,prominence=SSC_peak_prominence))
         SSC_peak.append(peak_suspended_sediment_concentration(event_series[column_suspended_sediment]))
         SSC_mean.append(mean_suspended_sediment_concentration(event_series[column_suspended_sediment]))
 
-        # streamflow
+        # streamflow magnitude
         Qtotal.append(
             total_streamflow_volume(
                 event_series[column_streamflow], freq_in_sec=freq_in_sec
             )
         )
-        annualQvol = annual_streamflow_volume.loc[
-            event_year, "streamflow"
-        ]  # import annual water yield from appropriate year
-        pQtotal.append(
-            proportion_of_annual_streamflow_volume(
-                event_series[column_streamflow],
-                annualQvol=annualQvol,
-                freq_in_sec=freq_in_sec,
-            )
-        )
         Q_peak.append(peak_streamflow(event_series[column_streamflow]))
         Q_mean.append(mean_streamflow(event_series[column_streamflow]))
+        
+        # other metrics
+        n_SSC_peaks.append(number_suspended_sediment_peaks(event_series[column_suspended_sediment],distance=min_peak_distance,prominence=SSC_peak_prominence))
         n_Q_peaks.append(number_streamflow_peaks(event_series[column_streamflow],distance=min_peak_distance,prominence=Q_peak_prominence))
         peak_phase_diff.append(peak_phase_difference(event_series,column_streamflow=column_streamflow,column_suspended_sediment=column_suspended_sediment))
         fall_to_risi_SSY_ratio.append(falling_to_rising_SSY_ratio(event_series,freq_in_min=freq_in_min,column_streamflow=column_streamflow,column_suspended_sediment=column_suspended_sediment))
         fall_to_risi_volume_ratio.append(falling_to_rising_volume_ratio(event_series, freq_in_sec=freq_in_sec,column_streamflow=column_streamflow))
-        
-        
 
     
     # add results for each event to output
     event_metrics = events_list.copy()
-    event_metrics["duration"] = duration
-    event_metrics["seasonal_timing"] = timing
-    event_metrics["year"] = year
+    event_metrics["duration"] = [
+        event_duration(start, end)
+        for (start, end) in zip(events_list.start, events_list.end)
+    ]
+    event_metrics["seasonal_timing"] = np.array(
+        [
+            [seasonal_timing(start) for start in events_list.start],
+            [seasonal_timing(end) for end in events_list.end],
+        ]
+    ).mean(axis=0)
+    event_metrics["year"] = events_list.start.apply(lambda x: x.year)
     event_metrics["SSY"] = SSY
-    event_metrics["pSSY"] = pSSY
+    if catchment_area is not None:
+        event_metrics["sSSY"] = event_metrics["SSY"]/catchment_area
+    event_metrics["SSYn"] = event_metrics["SSY"]/event_metrics["duration"]
     event_metrics["SSC_max"] = SSC_peak
     event_metrics["SSC_mean"] = SSC_mean
     event_metrics["SSC_mean_weighted"] = (np.array(SSY) / np.array(Qtotal)) * 10**6 # from Haddadchi & Hicks 2021
     event_metrics["n_SSC_peaks"] = n_SSC_peaks
     event_metrics["Qtotal"] = Qtotal
-    event_metrics["pQtotal"] = pQtotal
     event_metrics["Q_max"] = Q_peak
     event_metrics["Q_mean"] = Q_mean
     event_metrics["n_Q_peaks"] = n_Q_peaks 
     event_metrics["peak_phase_diff"] = peak_phase_diff 
     event_metrics["SSY_falling_to_rising_ratio"] = fall_to_risi_SSY_ratio
     event_metrics["Qtotal_falling_to_rising_ratio"] = fall_to_risi_volume_ratio
-    # ratio of suspended sediment to streamflow peaks
-    event_metrics["SQPR"] = np.log(event_metrics["n_SSC_peaks"]/event_metrics["n_Q_peaks"])
-    # log transformations
-    if log_transform_duration_magnitude:
-        event_metrics["duration_log"] = np.log(event_metrics["duration"])
-        event_metrics["SSY_log"] = np.log(event_metrics["SSY"])
-        event_metrics["SSC_max_log"] = np.log(event_metrics["SSC_max"])
-        event_metrics["SSC_mean_log"] = np.log(event_metrics["SSC_mean"])
-        event_metrics["Qtotal_log"] = np.log(event_metrics["Qtotal"])
-        event_metrics["Q_max_log"] = np.log(event_metrics["Q_max"])
-        event_metrics["Q_mean_log"] = np.log(event_metrics["Q_mean"])
-
-    
-    if add_inter_event_effect_metrics:
-        event_metrics["Q_max_previous_ratio"] = np.log(event_metrics.Q_max.shift(1)/event_metrics.Q_max)
-        
-        time_since_last_event = []
-        for i,event in event_metrics.iterrows():
-            if i == 0:
-                time_since_last_event.append(np.nan)
-            else:
-                time_since_last_event.append((event.start - event_metrics.iloc[i-1].end).total_seconds() / 3600)
-        event_metrics["time_since_last_event"] = time_since_last_event
-
-        append_mag_time_logratio(event_metrics,magnitude_metric="SSY")
-        append_mag_time_logratio(event_metrics,magnitude_metric="Qtotal")
-        append_mag_time_logratio(event_metrics,magnitude_metric="Q_max")
-        append_mag_time_logratio(event_metrics,magnitude_metric="SSC_max")
+    event_metrics["SQPR"] = np.log(event_metrics["n_SSC_peaks"]/event_metrics["n_Q_peaks"]) # ratio of suspended sediment to streamflow peaks
+    event_metrics["Q_max_previous_ratio"] = np.log(event_metrics.Q_max.shift(1)/event_metrics.Q_max)
+    time_since_last_event = []
+    for i,(_,event) in enumerate(events_list.iterrows()):
+        if i == 0:
+            time_since_last_event.append(np.nan)
+        else:
+            time_since_last_event.append((event.start - event_metrics.iloc[i-1].end).total_seconds() / 3600)
+    event_metrics["time_since_last_event"] = time_since_last_event
+    append_mag_time_logratio(event_metrics,magnitude_metric="SSY")
+    append_mag_time_logratio(event_metrics,magnitude_metric="Qtotal")
+    append_mag_time_logratio(event_metrics,magnitude_metric="Q_max")
+    append_mag_time_logratio(event_metrics,magnitude_metric="SSC_max")
 
     return event_metrics
 
@@ -702,7 +667,6 @@ def main(file_gauge_data,file_events,file_annual_streamflow,file_annual_sediment
     
     # save the metrics to file
     event_metrics.to_csv(output_file,index=False)
-
 
 if __name__ == "__main__":
     import argparse

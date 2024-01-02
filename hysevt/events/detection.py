@@ -330,7 +330,7 @@ def hydro_sediment_events(path_gauge_data: Path,
     logger.info(f"Rolling median window: {ma_window}")
     if max_Q_missing is not None:
         logger.info(f"Hydrological events must have more than {max_Q_missing*100}% valid streamflow data.")
-    logger.info(f"filter_SSC_quantile = {SSC_threshold_by_quantile}")
+    logger.info(f"SSC_threshold_by_quantile = {SSC_threshold_by_quantile}")
     if max_SSC_missing is not None:
         logger.info(f"Hydro-sediment events must have more than {max_SSC_missing*100}% valid suspended sediment data.")
     
@@ -418,7 +418,7 @@ def hydro_sediment_events(path_gauge_data: Path,
     events_list = events_list.set_index("event_id")
     
     # save to file
-    events_list.to_csv(output_file,index=False)
+    events_list.to_csv(output_file,index=True)
     logger.info(f"Final event list saved at {output_file}")
     
     return events_list

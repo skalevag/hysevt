@@ -25,7 +25,6 @@ stem = gsub(".csv","",event_list)
 pdf_file = paste0(stem,"_loadflux_hysteresis_plots.pdf")
 csv_file = paste0(stem,"_hysteresis_index.csv")
 
-
 # discharge and sediment data
 df = read.csv(data_gauge)
 df$time <- as.POSIXct(df$time,"%Y-%m-%d %H:%M:%OS")
@@ -49,7 +48,7 @@ if (save_plots == "TRUE" | save_plots == "True"){
 # get hysteresis index
 hi_simple = c() # empty vector
 hi_aich = c() # empty vector
-hi_mid = c() # empty vector
+#hi_mid = c() # empty vector
 
 for (event_no in 1:nrow(myEvents)){
   myEvent = df[df$time >= myEvents[event_no,]$start & df$time <= myEvents[event_no,]$end,]
