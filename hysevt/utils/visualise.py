@@ -15,7 +15,126 @@ import hysevt.events.metrics
 from scipy.cluster.hierarchy import dendrogram
 import scipy
 import matplotlib as mpl
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 
+## Global variables
+training_features = [
+    "duration",
+    "seasonal_timing",
+    "seasonality_winter_summer",
+    "seasonality_spring_autumn",
+    "SSY",
+    "SSYn",
+    "SSC_max",
+    "SSC_mean",
+    "SSC_mean_weighted",
+    "Qtotal",
+    "Q_max",
+    "Q_mean",
+    "SSY_log",
+    "SSYn_log",
+    "SSC_max_log",
+    "SSC_mean_log",
+    "SSC_mean_weighted_log",
+    "Qtotal_log",
+    "Q_max_log",
+    "Q_mean_log",
+    "peak_phase_diff",
+    "SSY_falling_to_rising_ratio",
+    "SQPR",
+    "Q_max_previous_ratio",
+    "IEI_SSY",
+    "IEI_Qtotal",
+    "IEI_Q_max",
+    "IEI_SSC_max",
+    "SHI",
+    "AHI",
+]
+feature_labels = dict(
+    zip(
+        training_features,
+        [
+            r"$\Delta t$",
+            r"$DOY$",
+            r"$DOY_{cos}$",
+            r"$DOY_{sin}$",
+            r"$SSY$",
+            r"$SSY_n$",
+            r"$SSC_{max}$",
+            r"$SSC_{mean}$",
+            r"$SSC_{mean,w}$",
+            r"$Q_{total}$",
+            r"$Q_{max}$",
+            r"$Q_{mean}$",
+            r"$SSY^\dagger$",
+            r"$SSY_n^\dagger$",
+            r"$SSC_{max}^\dagger$",
+            r"$SSC_{mean}^\dagger$",
+            r"$SSC_{mean,w}^\dagger$",
+            r"$Q_{total}^\dagger$",
+            r"$Q_{max}^\dagger$",
+            r"$Q_{mean}^\dagger$",
+            r"$phi_{peak}$",
+            r"$SSY_{ratio}$",
+            r"$SQPR$",
+            r"$Q_{peak,ratio}$",
+            r"$IEI_{SSY}$",
+            r"$IEI_{SSCmax}$",
+            r"$IEI_{Qtotal}$",
+            r"$IEI_{Qmax}$",
+            r"$SHI$",
+            r"$AHI$",
+        ],
+    )
+)
+feature_colors = dict(
+    zip(
+        training_features,
+        [
+            "darkslategrey",
+            "darkslategrey",
+            "darkslategrey",
+            "darkslategrey",
+            "brown",
+            "brown",
+            "brown",
+            "brown",
+            "brown",
+            "blue",
+            "blue",
+            "blue",
+            "brown",
+            "brown",
+            "brown",
+            "brown",
+            "brown",
+            "blue",
+            "blue",
+            "blue",
+            "green",
+            "green",
+            "green",
+            "darkgoldenrod",
+            "darkgoldenrod",
+            "darkgoldenrod",
+            "darkgoldenrod",
+            "darkgoldenrod",
+            "green",
+            "green",
+        ],
+    )
+)
+event_metrics_colors_labels = (
+    pd.Series(feature_colors)
+    .rename("color")
+    .to_frame()
+    .join(pd.Series(feature_labels).rename("label"))
+)
+event_metrics_colors_labels.index.name = "metric"
+
+
+## Time series plots
 def plot_years_together(
     ts, y_column, months=range(5, 11), ylabel=None,
 ):
@@ -177,6 +296,7 @@ def plotEventSeriesWithPrecip(
     ax.set_title("Event")
     
 
+## METS
 def plot_MultivariateKmedoids_eval(results,ODIR=None):
     fig, ax = plt.subplots(nrows=2, sharex=False, figsize=(5, 5))
     results.plot(x="n_clusters", y="SSE", ax=ax[0], style=".-", grid=True)
@@ -189,6 +309,7 @@ def plot_MultivariateKmedoids_eval(results,ODIR=None):
     ax[1].set_yticks(np.arange(ax[1].get_yticks().min(), ax[1].get_yticks().max(), 2))
     plt.savefig(ODIR.joinpath("METS_clustering_results_eval.png"),bbox_inches="tight")
 
+## PCA
 def eval_plot_PCA(pca,cum_var_level=0.9, ax=None):
     if ax is None:
         _, ax1 = plt.subplots()
@@ -230,136 +351,116 @@ def plot_variables_in_pca_space(loadings,variables,c1,c2,legend=True,ax=None,col
     if legend:
         ax.legend(bbox_to_anchor=(1, 1))
 
+
 def plot_loadings_for_component(loadings, feature_labels, ax=None):
     if ax is None:
         fig, ax = plt.subplots()
     ax.barh(y=np.arange(len(feature_labels)), width=loadings)
     ax.set_yticks(ticks=np.arange(len(feature_labels)), labels=feature_labels)
 
-def quickplot_clustering_results(clustering_results: pd.DataFrame, with_year_column=False):
-    """Plots the event metrics grouped by cluster results.
 
-    Args:
-        clustering_results (pd.DataFrame): event_metrics dataframe with cluster labels in column "cluster_id"
-        with_year_column (bool, optional): whether or not to include the year. Defaults to False.
-    """
-    # get events that were not assigned a cluster
-    null_cluster = clustering_results[clustering_results.cluster_id == -1]
-    # remove those events from the cluster results dataframe
-    clustering_results = clustering_results[clustering_results.cluster_id != -1]
+def pca_components_eval_plot(pca,n_components,selected_event_metrics,cum_var_level=0.8,ncols = 3):
+    # extact loadings
+    pc_df = pd.DataFrame(
+        abs(pca.components_[:n_components,:]),
+        columns=selected_event_metrics,
+        index=[f"PC{c+1}" for c in range(n_components)],
+    )
+    pca_components = pd.DataFrame(
+        pca.components_[:n_components,:],
+        columns=selected_event_metrics,
+        index=[f"PC{c+1}" for c in range(n_components)],
+    )
 
-    fig_list = []
-    # number of events in each cluster
-    fig, ax = plt.subplots()
-    numbers = clustering_results.groupby("cluster_id").cluster_id.count()
-    numbers.index = numbers.index.astype(int)
-    numbers.plot.bar(ax=ax)
-    plt.ylabel("Number of events in cluster")
-    fig_list.append(fig)
-
-    # scatter plots colored by clusters
-    # discharge vs. sediment yield
-    fig, ax = plt.subplots()
-    null_cluster.plot.scatter(ax=ax, y="SSY", x="Qtotal", color="grey", marker="x")
-    clustering_results.plot.scatter(
-        ax=ax,
-        y="SSY",
-        x="Qtotal",
-        c=clustering_results["cluster_id"],
-        cmap="viridis",
-        colorbar=True,
+    # initialise plot
+    nrows = int(np.ceil(n_components / ncols)) + 1
+    fig, ax = plt.subplots(
+        ncols=ncols,
+        nrows=nrows,
+        figsize=(5*ncols,4*nrows),
+        sharex=False,
     )
-    fig_list.append(fig)
-
-    # seasonality vs. sediment yield
-    fig, ax = plt.subplots()
-    null_cluster.plot.scatter(
-        ax=ax, y="SSY", x="seasonal_timing", color="grey", marker="x"
-    )
-    clustering_results.plot.scatter(
-        ax=ax,
-        y="SSY",
-        x="seasonal_timing",
-        c=clustering_results["cluster_id"],
-        cmap="viridis",
-        colorbar=True,
-    )
-    fig_list.append(fig)
-
-    # sediment related
-    fig, ax = plt.subplots()
-    clustering_results.boxplot(
-        column=["SSY", "SSC_max"], by="cluster_id", grid=False, color="brown",ax=ax
-    )
-    plt.tight_layout()
-    fig_list.append(fig)
-
-    # streamflow related
-    fig, ax = plt.subplots(ncols=2)
-    clustering_results.boxplot(
-        column="Qtotal", by="cluster_id", grid=False, color="blue", ax=ax[0]
-    )
-    clustering_results.boxplot(
-        column="Q_max", by="cluster_id", grid=False, color="blue", ax=ax[1]
-    )
-    plt.tight_layout()
-    fig_list.append(fig)
-
-    # hysteresis
-    fig, ax = plt.subplots(ncols=3)
-    clustering_results.boxplot(
-        column="SHI", by="cluster_id", grid=False, color="green", ax=ax[0]
-    )
-    clustering_results.boxplot(
-        column="AHI", by="cluster_id", grid=False, color="green", ax=ax[1]
-    )
-    clustering_results.boxplot(
-        column="peak_phase_diff",
-        by="cluster_id",
-        grid=False,
-        color="green",
-        ax=ax[2],
-    )
-    plt.tight_layout()
-    fig_list.append(fig)
-
-    # complexity
-    fig, ax = plt.subplots(ncols=2)
-    clustering_results.boxplot(
-        column="last_event_SSY_elapsed_time_logratio", by="cluster_id", grid=False, color="grey", ax=ax[0]
-    )
-    clustering_results.boxplot(
-        column="SQPR", by="cluster_id", grid=False, color="grey", ax=ax[1]
-    )
-    plt.tight_layout()
-    fig_list.append(fig)
-
-    # seasonality and duration
-    if with_year_column:
-        fig, ax = plt.subplots(ncols=3)
-        clustering_results.boxplot(
-            column="seasonal_timing", by="cluster_id", grid=False, color="red", ax=ax[0]
+    # unravel axes
+    ax = ax.ravel()
+    subplot_label = ["(a)", "(b)", "(c)", "(d)", "(e)", "(f)", "(g)", "(h)","(i)","(j)","(k)","(l)","(m)","(n)","(o)"]
+    # look over each principal component
+    for i, c in enumerate(pc_df.index):
+        sub = pc_df.loc[c].sort_values()
+        sub.plot.barh(
+            ax=ax[i], color=[event_metrics_colors_labels.loc[f].color for f in sub.index], width=0.8
         )
-        clustering_results.boxplot(
-            column="duration", by="cluster_id", grid=False, color="red", ax=ax[1]
+        ax[i].set_yticklabels([event_metrics_colors_labels.loc[f].label for f in sub.index])
+        ax[i].set_title(
+            f"{c} ({pca.explained_variance_ratio_[i]*100:.1f}% explained variance)",
+            loc="right",
         )
-        clustering_results.boxplot(
-            column="year", by="cluster_id", grid=False, color="red", ax=ax[2]
-        )
-
-    else:
-        fig, ax = plt.subplots(ncols=2)
-        clustering_results.boxplot(
-            column="seasonal_timing", by="cluster_id", grid=False, color="red", ax=ax[0]
-        )
-        clustering_results.boxplot(
-            column="duration", by="cluster_id", grid=False, color="red", ax=ax[1]
-        )
+        ax[i].set_title(subplot_label[i], loc="left", fontsize=12, weight="bold")
+        ax[i].set_xlabel("Loadings")
+        # add number of events per year
+        for x, y, s in zip(
+            sub,
+            np.array(range(len(sub))) - 0.2,
+            ["+" if x > 0 else "-" for x in pca_components.loc[c][sub.index]],
+        ):
+            ax[i].text(x + 0.01, y, s, ha="center")
+    
+    try:
+        for a in ax[len(pc_df.index) + 1:]:
+            a.axis("off")
+    except IndexError:
+        pass
+    # add pca evaluation plot
+    hysevt.utils.visualise.eval_plot_PCA(
+        pca, cum_var_level=cum_var_level, ax=ax[len(pc_df.index)]
+    )
+    ax[len(pc_df.index)].set_title(
+        subplot_label[len(pc_df.index)], loc="left", fontsize=12, weight="bold"
+    )
+    
+    # custom legend
+    legend_elements = [
+        Patch(
+            facecolor="darkslategrey",
+            edgecolor="none",
+            label="Time and seasonality",
+            alpha=0.8,
+        ),
+        Patch(
+            facecolor="brown",
+            edgecolor="none",
+            label="Suspended sediment\nmagnitude",
+            alpha=0.8,
+        ),
+        Patch(facecolor="blue", edgecolor="none", label="Streamflow magnitude", alpha=0.8),
+        Patch(facecolor="green", edgecolor="none", label="Intra-event dynamics", alpha=0.8),
+        Patch(
+            facecolor="darkgoldenrod",
+            edgecolor="none",
+            label="Inter-event effects",
+            alpha=0.8,
+        ),
+        Line2D([0], [0], color="k", lw=3, label=r"$\theta_{PCA}$ = 80 %"),
+        Line2D(
+            [0],
+            [0],
+            color="r",
+            lw=3,
+            label="Cum. explained variance",
+            marker="*",
+            markersize=10,
+        ),
+        Patch(facecolor="tab:blue", edgecolor="none", label="Explained variance"),
+    ]
+    
+    ax[len(pc_df.index) + 1].legend(
+        handles=legend_elements, loc="center", fontsize=13, frameon=False
+    )
+    
     plt.tight_layout()
-    fig_list.append(fig)
+    return ax
 
-    return fig_list
 
+## Clustering
 def plot_cluster_number_GMM(n_components,aic,bic):
     fig,ax = plt.subplots()
     ax.plot(n_components, aic, label="AIC", color="red")
@@ -370,6 +471,58 @@ def plot_cluster_number_GMM(n_components,aic,bic):
     ax.set_xlabel("number of components")
     ax.set_xticks(n_components)
     return fig
+
+def gmm_model_selection_scores(
+    results_cov_type,
+    scores=[
+        "BIC",
+        "calinski_harabasz_score",
+        "silhouette_score_eucl",
+        "davies_bouldin_score",
+    ],
+    k=None,
+):
+    # set colors for runs
+    run_colors = dict(
+        zip(["full", "diag", "spherical"], plt.cm.bone(np.linspace(0.1, 0.75, 3)))
+    )
+    run_line = dict(zip(["full", "diag", "spherical"], [":", "--", "-"]))
+
+    fig, ax = plt.subplots(nrows=len(scores), sharex=True, figsize=(6, 2 * len(scores)))
+
+    for i, score in enumerate(scores):
+        sel_runs = []
+        for run in results_cov_type:
+            results_cov_type[run].plot(
+                y=score,
+                label="diagonal" if run == "diag" else run,
+                color=run_colors[run],
+                linestyle=run_line[run],
+                ax=ax[i],
+                legend=False,
+            )
+            if i == 0:
+                ax[i].legend(
+                    loc="upper left",
+                    bbox_to_anchor=(1, 1),
+                    title="Covariance type",
+                )
+        ax[i].set_ylabel(score)
+        ax[i].set_xticks(results_cov_type[run].index)
+        if k is not None:
+            lims = ax[i].get_ylim()
+            ax[i].vlines(
+                k,
+                min([results_cov_type[run][score].min() for run in results_cov_type])
+                - 1000,
+                max([results_cov_type[run][score].max() for run in results_cov_type])
+                + 1000,
+                color="grey",
+            )
+            ax[i].set_ylim(lims)
+    ax[-1].set_xlabel("Number of clusters $K$", fontsize=12)
+    ax[-1].set_xlim(0.5, 20.5)
+    return ax
 
 def plot_cluster_scores(results):
     fig,ax = plt.subplots(nrows=2,sharex=True)
@@ -713,65 +866,6 @@ def violinplot_cluster_zscore(event_metrics_zscores,k,col_order,col_order_labels
     
     return ax
 
-def plot_cluster_prob(
-    features_with_cluster_prob,
-    k,
-    x,
-    y,
-    logy=False,
-    logx=False,
-    x_label=None,
-    y_label=None,
-):
-    seq_cmaps = [
-        "Purples",
-        "Blues",
-        "Greens",
-        "Oranges",
-        "Reds",
-        "YlOrBr",
-        "YlOrRd",
-        "OrRd",
-        "PuRd",
-        "RdPu",
-        "BuPu",
-        "GnBu",
-        "PuBu",
-        "YlGnBu",
-        "PuBuGn",
-        "BuGn",
-        "YlGn",
-    ]
-
-    if x_label is None:
-        x_label = x
-    if y_label is None:
-        y_label = y
-
-    fig, ax = plt.subplots(
-        ncols=k // 2, nrows=2, figsize=(2.5 * k, 3 * 2), sharex=True, sharey=True
-    )
-    ax = ax.ravel()
-
-    for c, cmap in zip(range(k), seq_cmaps[:k]):
-        features_with_cluster_prob.plot.scatter(
-            ax=ax[c],
-            x=x,
-            y=y,
-            c=f"prob_cluster_{c}",
-            cmap=cmap,
-            vmin=0,
-            vmax=1,
-            alpha=0.5,
-            edgecolor="none",
-            logy=logy,
-            logx=logx,
-        )
-        ax[c].set_title(f"Cluster {c}")
-        ax[c].set_ylabel("")
-    fig.text(0.5, -0.03, x_label, fontsize=18)
-    fig.text(-0.03, 0.5, y_label, fontsize=18, rotation="vertical")
-    plt.tight_layout()
     
 def plot_cluster_prob(
     features_with_cluster_prob,

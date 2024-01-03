@@ -120,17 +120,45 @@ def event_duration(start: pd.Timestamp, end: pd.Timestamp) -> float:
     duration = (end - start).total_seconds() / 3600  # in hours
     return duration
 
-def seasonal_timing(time: pd.Timestamp) -> int:
-    """Calculate metric of seasonal timing, i.e. day of year
+def seasonal_timing(start_time: pd.Timestamp,end_time: pd.Timestamp) -> float:
+    """Calculate metric of seasonal timing in day of year of event. Average of start and end day.
 
     Args:
-        time (pd.Timestamp): time of the event, e.g. start or end of the event
+        start_time (pd.Timestamp): start of the event
+        end_time (pd.Timestamp): end of the event
 
     Returns:
-        int: day of year (seasonal timing)
+        float: average day of year (seasonal timing) of event
     """
-    #TODO: expand include different options?
-    return time.dayofyear
+    return np.mean([start_time.dayofyear,end_time.dayofyear])
+
+def seasonality_winter_summer(doy: float) -> float:
+    """Calculate metric of seasonal timing, i.e. cosine of day of year. 
+    Higher values express "mid-winterness" and lower values "mid-summerness".
+    DOY 1, i.e. 1 January, corresponds to 1.
+    DOY 183, i.e. 1 July, corresponds to -1.
+
+    Args:
+        doy (float)): seasonal timing of event, average day of year
+
+    Returns:
+        float
+    """
+    return np.cos(np.deg2rad((doy/366)*360))
+
+def seasonality_spring_autumn(doy: float) -> float:
+    """Calculate metric of seasonal timing, i.e. sine of day of year. 
+    Higher values express "mid-springness" and lower values "mid-autumness".
+    DOY 92, i.e. 1 Aprul, corresponds to 1.
+    DOY 275, i.e. 1 October, corresponds to -1.
+
+    Args:
+        doy (float)): seasonal timing of event, average day of year
+
+    Returns:
+        float
+    """
+    return np.sin(np.deg2rad((doy/366)*360))
 
 # suspended sediment
 def total_suspended_sediment_yield(
@@ -283,7 +311,7 @@ def total_streamflow_volume(q_series: pd.Series, freq_in_sec: int) -> float:
     Returns:
         float: streamflow volume in m3
     """
-    return sum(q_series * freq_in_sec)
+    return (q_series * freq_in_sec).sum()
 
 def proportion_of_annual_streamflow_volume(
     q_series: pd.Series, annualQvol, freq_in_sec
@@ -602,12 +630,9 @@ def calculate_event_metrics(
         event_duration(start, end)
         for (start, end) in zip(events_list.start, events_list.end)
     ]
-    event_metrics["seasonal_timing"] = np.array(
-        [
-            [seasonal_timing(start) for start in events_list.start],
-            [seasonal_timing(end) for end in events_list.end],
-        ]
-    ).mean(axis=0)
+    event_metrics["seasonal_timing"] = [seasonal_timing(start,end) for (start, end) in zip(events_list.start, events_list.end)]
+    event_metrics["seasonality_winter_summer"] = seasonality_winter_summer(event_metrics["seasonal_timing"])
+    event_metrics["seasonality_spring_autumn"] = seasonality_spring_autumn(event_metrics["seasonal_timing"])
     event_metrics["year"] = events_list.start.apply(lambda x: x.year)
     event_metrics["SSY"] = SSY
     if catchment_area is not None:
