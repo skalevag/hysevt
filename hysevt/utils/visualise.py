@@ -223,7 +223,7 @@ def plotEventSeries(event_data, ax=None, legend=False, add_peaks=True):
     # add peaks
     if add_peaks:
         ax.plot(hysevt.events.metrics.get_streamflow_peaks(event_data.streamflow),"kx")
-        ax2.plot(hysevt.events.metrics.get_suspended_sediment_peaks(event_data.suspended_sediment/1000),"kx")
+        ax2.plot(hysevt.events.metrics.get_suspended_sediment_peaks(event_data.suspended_sediment)/1000,"kx")
 
     # shared legend
     h1, l1 = ax.get_legend_handles_labels()
