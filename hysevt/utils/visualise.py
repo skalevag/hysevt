@@ -80,9 +80,9 @@ feature_labels = dict(
             r"$SQPR$",
             r"$Q_{peak,ratio}$",
             r"$IEI_{SSY}$",
-            r"$IEI_{SSCmax}$",
             r"$IEI_{Qtotal}$",
             r"$IEI_{Qmax}$",
+            r"$IEI_{SSCmax}$",
             r"$SHI$",
             r"$AHI$",
         ],
@@ -133,6 +133,13 @@ event_metrics_colors_labels = (
 )
 event_metrics_colors_labels.index.name = "metric"
 
+# firt day of months in doy
+doy_to_month = dict(
+        zip(
+            [1,32,61,92,121, 152, 182, 213, 244, 275, 305,336],
+            ["Jan","Feb","Mar","Apr","May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov","Dec"],
+        )
+    )
 
 ## Time series plots
 def plot_years_together(
@@ -926,3 +933,58 @@ def plot_cluster_prob(
     fig.text(0.5, -0.03, x_label, fontsize=18)
     fig.text(-0.03, 0.5, y_label, fontsize=18, rotation="vertical")
     plt.tight_layout()
+
+
+# for transforming cluster probabilities
+def logit_transform(p):
+    try:
+        if p > 0.999:
+            return np.log(0.999 / (1 - 0.999))
+        else:
+            return np.log(p / (1 - p))
+    except ZeroDivisionError:
+        return np.log(0.999 / (1 - 0.999))
+
+
+def plot_event_scatter_by_cluster(
+    event_metrics_labels, cluster_colors, x, y, logx=True, logy=True, ax=None, legend=True
+):
+    """Plot a scatter of event characteristics colored by cluster id.
+
+    Args:
+        event_metrics_labels (pandas.DataFrame): dataframe of events with cluster ids and characteristics
+        cluster_colors (list): list of colours corresponding to each cluster id
+        x (str): colomn name of variable to be plotted on x axis
+        y (str): colomn name of variable to be plotted on y axis
+        logx (bool, optional): logarithmic x axis. Defaults to True.
+        logy (bool, optional): logarithmic y axis. Defaults to True.
+        ax (axis-object, optional): axis to plot on (for panel plots), when not defined a single plot is generated. Defaults to None.
+        legend (bool, optional): whether to plot legend or not. Defaults to True.
+
+    Returns:
+        ax: plot axes
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(5, 4))
+    k = len(event_metrics_labels.cluster_id.unique())
+    for c, color in zip(range(k), cluster_colors):
+        size = (
+            event_metrics_labels[f"prob_cluster_{c}"][
+                event_metrics_labels.index[event_metrics_labels.cluster_id == c]
+            ].apply(logit_transform)
+            * 5
+            + 3
+        )
+        event_metrics_labels[event_metrics_labels.cluster_id == c].plot.scatter(
+            x=x,
+            y=y,
+            s=size,
+            ax=ax,
+            edgecolor=color,
+            color="none",
+            label=f"Cluster {c}",
+            logx=logx,
+            logy=logy,
+            legend=legend,
+        )
+    return ax
