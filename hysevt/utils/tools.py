@@ -47,7 +47,7 @@ def get_freq_in_sec(index: pd.DatetimeIndex) -> float:
         float: temporal resolution (frequency) in seconds
     """
     freq = pd.infer_freq(index)
-    if len(freq.replace("H","").replace("D","").replace("T",""))==0:
+    if len(freq.replace("h","").replace("H","").replace("D","").replace("T",""))==0:
         freq = "1"+freq
     freq_in_sec = pd.Timedelta(freq).total_seconds()
     return freq_in_sec

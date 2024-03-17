@@ -150,13 +150,13 @@ def get_hydro_events_start_end(hydro_events: pd.Series) -> pd.DataFrame:
     return pd.DataFrame(np.array([start,end]).T,columns=["start","end"])
 
 @log(logger)
-def filter_for_missing_data(events_list: pd.DataFrame,gauge_data: pd.DataFrame,max_missing = 0.9, column="streamflow"):
+def filter_for_missing_data(events_list: pd.DataFrame,gauge_data: pd.DataFrame,max_missing = 0.1, column="streamflow"):
     """Filter hydrological events, removing those with too much missing data.
 
     Args:
         events_list (pandas.DataFrame): list of event start and end timestamps
         gauge_data (pandas.DataFrame): timeseries of streamflow data
-        max_missing (float, optional): maximum fraction of missing data allowed. Defaults to 0.9.
+        max_missing (float, optional): maximum fraction of missing data allowed. Defaults to 0.1.
 
     Returns:
         pandas.DataFrame: filtered list of event start and end timestamps
@@ -169,7 +169,7 @@ def filter_for_missing_data(events_list: pd.DataFrame,gauge_data: pd.DataFrame,m
     events_without_data = []
     for i,event in zip(event_numbers,events_series):
         completeness = event[column].notnull().sum()/len(event)
-        if completeness < max_missing:
+        if completeness < (1-max_missing):
             events_without_data.append(i)
     # save the removed events to table
     removed_events = events_list.iloc[events_without_data,:].reset_index(drop=True)
@@ -276,7 +276,7 @@ def hydro_sediment_events(path_gauge_data: Path,
                           output_directory: Path,
                           event_station_id: str,
                           event_version_id = "AUT",
-                          ma_window = "3H",
+                          ma_window = "3h",
                           he_window=21,
                           SSC_threshold_by_quantile = 0.9,
                           keep_ma_gauge_data = False,
@@ -329,10 +329,10 @@ def hydro_sediment_events(path_gauge_data: Path,
     logger.info(f"Local minima window: {he_window} hours")
     logger.info(f"Rolling median window: {ma_window}")
     if max_Q_missing is not None:
-        logger.info(f"Hydrological events must have more than {max_Q_missing*100}% valid streamflow data.")
+        logger.info(f"Hydrological events must have less than {max_Q_missing*100}% missing streamflow data.")
     logger.info(f"SSC_threshold_by_quantile = {SSC_threshold_by_quantile}")
     if max_SSC_missing is not None:
-        logger.info(f"Hydro-sediment events must have more than {max_SSC_missing*100}% valid suspended sediment data.")
+        logger.info(f"Hydro-sediment events must have less than {max_SSC_missing*100}% missing suspended sediment data.")
     
     # set peak SSC threshold
     if SSC_threshold is None and SSC_threshold_by_quantile is not None:
